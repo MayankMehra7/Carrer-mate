@@ -1,7 +1,7 @@
 // src/api/api.js
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const BASE = "http://192.168.29.176:5000";
+const BASE = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000";
 
 async function fetchJson(path, opts = {}) {
   const url = `${BASE}${path}`;
