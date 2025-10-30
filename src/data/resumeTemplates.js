@@ -1,0 +1,78 @@
+// src/data/resumeTemplates.js
+
+export const resumeTemplates = [
+  {
+    id: 1,
+    name: "AutoCV",
+    description: "A clean and professional resume template with automatic formatting",
+    url: "https://www.overleaf.com/latex/templates/autocv/scfvqfpxncwb",
+    category: "Professional",
+    features: ["Clean Design", "ATS Friendly", "Easy to Customize"],
+    previewImage: "https://images.overleaf.com/templates/autocv/thumbnail.png",
+  },
+  {
+    id: 2,
+    name: "RenderCV Engineering",
+    description: "Modern engineering resume template with a professional layout",
+    url: "https://www.overleaf.com/latex/templates/rendercv-engineeringresumes-theme/shwqvsxdgkjy",
+    category: "Engineering",
+    features: ["Engineering Focus", "Modern Design", "Technical Sections"],
+    previewImage: "https://images.overleaf.com/templates/rendercv-engineering/thumbnail.png",
+  },
+  {
+    id: 3,
+    name: "Deedy Resume",
+    description: "Popular reversed chronological resume template",
+    url: "http://overleaf.com/latex/templates/deedy-resume-reversed/hqnwfgjbbddt",
+    category: "Creative",
+    features: ["Creative Layout", "Color Accents", "Skills Showcase"],
+    previewImage: "https://images.overleaf.com/templates/deedy-resume/thumbnail.png",
+  },
+  {
+    id: 4,
+    name: "Andrew Resume Workshop",
+    description: "Workshop-style resume template with guided sections",
+    url: "https://www.overleaf.com/latex/templates/andrewresumeworkshop/yrpwhsjdypmw",
+    category: "Educational",
+    features: ["Step-by-Step Guide", "Academic Style", "Comprehensive"],
+    previewImage: "https://images.overleaf.com/templates/andrew-resume/thumbnail.png",
+  },
+  {
+    id: 5,
+    name: "Kajal Gada Resume",
+    description: "Elegant resume template with balanced layout",
+    url: "https://www.overleaf.com/latex/templates/resume-template-by-kajal-gada/nsqrvpmrdtqx",
+    category: "Elegant",
+    features: ["Balanced Layout", "Professional Look", "Easy Formatting"],
+    previewImage: "https://images.overleaf.com/templates/kajal-resume/thumbnail.png",
+  },
+  {
+    id: 6,
+    name: "Bhavya Sharma CV",
+    description: "Academic CV template with comprehensive sections",
+    url: "https://www.overleaf.com/articles/bhavya-sharmas-cv/nxjjxvmfwybz",
+    category: "Academic",
+    features: ["Academic Format", "Publication Ready", "Research Focus"],
+    previewImage: "https://images.overleaf.com/articles/bhavya-cv/thumbnail.png",
+  },
+  {
+    id: 7,
+    name: "Naveen Kommuri Resume",
+    description: "Technology-focused resume with modern styling",
+    url: "https://www.overleaf.com/articles/naveen-kommuri-resume/fwshxxgmxkrr",
+    category: "Technology",
+    features: ["Tech Industry", "Modern Style", "Project Focused"],
+    previewImage: "https://images.overleaf.com/articles/naveen-resume/thumbnail.png",
+  },
+];
+
+export const templateCategories = [
+  "All",
+  "Professional",
+  "Engineering",
+  "Creative",
+  "Educational",
+  "Elegant",
+  "Academic",
+  "Technology",
+];
