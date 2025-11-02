@@ -1,50 +1,260 @@
-# Welcome to your Expo app 👋
+# Career Mate AI
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An intelligent career assistance mobile application built with React Native and Flask that helps users create professional resumes, generate tailored cover letters, and manage their job application process using AI-powered features.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **User Authentication**
+  - Email/password signup and login
+  - OAuth integration (Google & GitHub)
+  - Email verification with OTP
+  - Password reset functionality
 
+- **Resume Management**
+  - Upload and store resume content
+  - AI-powered resume analysis using Google Gemini
+  - Extract text from document files
+  - Get intelligent suggestions for improvement
+
+- **Cover Letter Generation**
+  - AI-generated cover letters tailored to job descriptions
+  - Generate from stored resume or custom input
+  - Save and manage multiple cover letters
+
+- **AI-Powered Suggestions**
+  - Personalized career advice
+  - Resume optimization tips
+  - Interview preparation guidance
+
+## Tech Stack
+
+### Frontend
+- **React Native** 0.81.5
+- **Expo** 54
+- **React Navigation** 7
+- **AsyncStorage** for local data
+- **Google Sign-In** & OAuth support
+
+### Backend
+- **Flask** 3.1.2
+- **MongoDB** (via pymongo 4.4.0)
+- **Google Gemini AI** for intelligent features
+- **Flask-Mail** for email services
+- **OAuth** support for Google & GitHub
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- Python 3.10+
+- MongoDB (local or MongoDB Atlas)
+- Gmail account (for email features)
+- Google Gemini API key
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd Carrer-mate
+   ```
+
+2. **Install frontend dependencies**
    ```bash
    npm install
    ```
 
-2. Start the app
-
+3. **Install backend dependencies**
    ```bash
-   npx expo start
+   cd career_mate_backend
+   pip install -r requirements.txt
+   cd ..
    ```
 
-In the output, you'll find options to open the app in a
+4. **Configure environment variables**
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+   Create `.env` files for both frontend and backend. See [SETUP.md](SETUP.md) for detailed instructions.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+   **Backend** (`career_mate_backend/.env`):
+   ```bash
+   FLASK_SECRET=your_secret_key
+   MONGO_URI=your_mongodb_connection_string
+   GEMINI_API_KEY=your_gemini_api_key
+   MAIL_USERNAME=your_email@gmail.com
+   MAIL_PASSWORD=your_gmail_app_password
+   ```
 
-## Get a fresh project
+   **Frontend** (`.env`):
+   ```bash
+   EXPO_PUBLIC_API_URL=http://YOUR_LOCAL_IP:5000
+   ```
 
-When you're ready, run:
+5. **Start the backend server**
+   ```bash
+   cd career_mate_backend
+   python run.py
+   ```
 
-```bash
-npm run reset-project
+6. **Start the frontend (in a new terminal)**
+   ```bash
+   npx expo start --clear
+   ```
+
+7. **Open the app**
+   - Scan QR code with Expo Go app (iOS/Android)
+   - Press `a` for Android emulator
+   - Press `i` for iOS simulator
+
+## Detailed Setup Guide
+
+For comprehensive setup instructions including:
+- MongoDB configuration (Atlas & local)
+- Email setup with Gmail
+- Getting API keys
+- OAuth configuration
+- Troubleshooting common issues
+
+**See [SETUP.md](SETUP.md) for complete documentation.**
+
+## Project Structure
+
+```
+Carrer-mate/
+├── src/                      # Frontend source code
+│   ├── api/                  # API client
+│   ├── components/           # Reusable components
+│   ├── screens/              # App screens
+│   ├── navigation/           # Navigation configuration
+│   └── contexts/             # React contexts
+├── career_mate_backend/      # Backend Flask application
+│   ├── routes.py             # API routes
+│   ├── models.py             # Database models
+│   ├── db.py                 # Database connection
+│   ├── config.py             # Configuration
+│   └── run.py                # Entry point
+├── assets/                   # Images and static files
+├── .env                      # Frontend environment variables
+├── .env.example              # Frontend env template
+├── app.json                  # Expo configuration
+├── package.json              # Frontend dependencies
+├── SETUP.md                  # Detailed setup guide
+└── README.md                 # This file
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Environment Variables
 
-## Learn more
+### Frontend (.env)
 
-To learn more about developing your project with Expo, look at the following resources:
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `EXPO_PUBLIC_API_URL` | Yes | Backend API URL (e.g., http://192.168.1.100:5000) |
+| `EXPO_PUBLIC_GOOGLE_OAUTH_CLIENT_ID` | No | Google OAuth Client ID (optional) |
+| `EXPO_PUBLIC_GITHUB_OAUTH_CLIENT_ID` | No | GitHub OAuth Client ID (optional) |
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Backend (career_mate_backend/.env)
 
-## Join the community
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `FLASK_SECRET` | Yes | Secret key for Flask sessions |
+| `MONGO_URI` | Yes | MongoDB connection string |
+| `GEMINI_API_KEY` | Yes | Google Gemini AI API key |
+| `MAIL_USERNAME` | Yes | Email address for sending emails |
+| `MAIL_PASSWORD` | Yes | Email app password |
+| `PORT` | No | Server port (default: 5000) |
+| `GOOGLE_OAUTH_CLIENT_ID` | No | Google OAuth credentials (optional) |
+| `GITHUB_OAUTH_CLIENT_ID` | No | GitHub OAuth credentials (optional) |
 
-Join our community of developers creating universal apps.
+## API Endpoints
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+### Authentication
+- `POST /api/signup` - Create new account
+- `POST /api/verify-otp` - Verify email with OTP
+- `POST /api/login` - Login user
+- `POST /api/logout` - Logout user
+- `POST /api/forgot-password` - Request password reset
+- `POST /api/reset-password` - Reset password
+
+### Resume & Cover Letter
+- `POST /api/upload_resume` - Upload resume content
+- `GET /api/get_resume` - Get stored resume
+- `POST /api/generate_cover_letter` - Generate cover letter
+- `POST /api/generate_cover_from_stored` - Generate from stored resume
+- `POST /api/accept_cover_letter` - Save cover letter
+- `POST /api/extract_file_text` - Extract text from file
+
+### AI Features
+- `POST /api/get_ai_suggestions` - Get AI-powered suggestions
+
+### OAuth
+- `POST /api/oauth/google` - Google OAuth login
+- `POST /api/oauth/github` - GitHub OAuth login
+
+## Development
+
+### Running Tests
+
+Backend tests:
+```bash
+cd career_mate_backend
+python -m pytest
+```
+
+### Clearing Cache
+
+If you encounter issues, clear the Expo cache:
+```bash
+npx expo start --clear
+```
+
+### Debugging
+
+- **Frontend logs:** Check Expo DevTools at http://localhost:8081
+- **Backend logs:** Check terminal running `python run.py`
+- **Network issues:** Verify backend is running and API URL is correct
+
+## Troubleshooting
+
+### Cannot connect to backend
+- Ensure backend is running (`python run.py`)
+- Check `EXPO_PUBLIC_API_URL` matches your backend IP
+- Verify both devices are on the same network
+- For Android emulator, use `http://10.0.2.2:5000`
+
+### MongoDB connection failed
+- Verify `MONGO_URI` is correct
+- Check MongoDB is running (if local)
+- Ensure IP is whitelisted in MongoDB Atlas
+
+### Email not sending
+- Use Gmail App Password, not regular password
+- Enable 2-Factor Authentication on Google account
+- Check spam folder
+
+**See [SETUP.md](SETUP.md) for comprehensive troubleshooting.**
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
+
+## Support
+
+For setup help and troubleshooting:
+- Read [SETUP.md](SETUP.md) for detailed instructions
+- Check the [Troubleshooting](#troubleshooting) section
+- Review backend and frontend logs for error messages
+
+## Acknowledgments
+
+- Built with [Expo](https://expo.dev)
+- Powered by [Google Gemini AI](https://ai.google.dev/)
+- Uses [MongoDB](https://www.mongodb.com/) for data storage
+- Authentication with [Flask](https://flask.palletsprojects.com/)
