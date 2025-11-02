@@ -12,7 +12,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { colors, spacing, typography } from '../../styles/theme';
+import { spacing } from '../../styles/spacing';
+import { colors, typography } from '../../styles/theme';
 import { useToast } from '../common/Toast';
 
 /**

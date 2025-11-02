@@ -5,7 +5,9 @@
  */
 
 import { useMemo } from 'react';
-import { Animated, Text, View } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
+import { spacing } from '../../styles/spacing';
+import { borderRadius, colors, typography } from '../../styles/theme';
 
 /**
  * Password strength meter component

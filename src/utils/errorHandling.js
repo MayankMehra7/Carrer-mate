@@ -304,6 +304,8 @@ export class PasswordValidationErrorHandler {
 
 /**
  * Singleton instance for global error handling
+ * @deprecated Use the enhanced PasswordValidationErrorHandler from PasswordValidationErrorHandler.js
+ * This is maintained for backward compatibility
  */
 export const passwordValidationErrorHandler = new PasswordValidationErrorHandler();
 

@@ -16,17 +16,26 @@ export class OAuthService {
    */
   static async signOutGoogle() {
     try {
-      // Check if user is signed in to Google
-      const isSignedIn = await GoogleSignin.isSignedIn();
-      
-      if (isSignedIn) {
-        // Sign out from Google
-        await GoogleSignin.signOut();
+      // Check if we're on web platform
+      if (typeof window !== 'undefined') {
+        // Web platform - just clear local data
+        console.log('Web platform: clearing OAuth data without native sign-out');
+        await AsyncStorage.removeItem('google_oauth_data');
+        return { success: true };
       }
       
-      // Clear Google OAuth data from AsyncStorage
-      await AsyncStorage.removeItem('google_oauth_data');
+      // Native platform - use GoogleSignin safely
+      try {
+        const isSignedIn = await GoogleSignin.isSignedIn();
+        if (isSignedIn) {
+          await GoogleSignin.signOut();
+        }
+      } catch (error) {
+        console.log('GoogleSignin not available, continuing with data cleanup');
+      }
       
+      // Always clear local data
+      await AsyncStorage.removeItem('google_oauth_data');
       return { success: true };
     } catch (error) {
       console.error('Google sign out error:', error);
@@ -135,7 +144,20 @@ export class OAuthService {
         AsyncStorage.getItem('oauth_session'),
       ]);
 
-      const isGoogleSignedIn = await GoogleSignin.isSignedIn().catch(() => false);
+      // Check Google sign-in status safely
+      let isGoogleSignedIn = false;
+      if (typeof window !== 'undefined') {
+        // Web platform - check local data only
+        isGoogleSignedIn = !!googleData;
+      } else {
+        // Native platform - try GoogleSignin
+        try {
+          isGoogleSignedIn = await GoogleSignin.isSignedIn();
+        } catch (error) {
+          // Fallback to local data if GoogleSignin fails
+          isGoogleSignedIn = !!googleData;
+        }
+      }
 
       return {
         google: {

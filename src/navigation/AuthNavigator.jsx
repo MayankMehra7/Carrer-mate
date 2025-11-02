@@ -8,9 +8,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Easing } from 'react-native';
 
 // Import screens
-import SplashScreen from '../screens/SplashScreen';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
+import SplashScreen from '../screens/SplashScreen';
 
 // Import theme
 import { colors } from '../styles/theme';
@@ -57,7 +57,7 @@ const transitionConfig = {
 export const AuthNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Splash"
+      initialRouteName="Login"
       screenOptions={{
         headerShown: false,
         gestureEnabled: true,
@@ -87,6 +87,17 @@ export const AuthNavigator = () => {
         },
       }}
     >
+      {/* Test OAuth Screen */}
+      <Stack.Screen
+        name="TestOAuth"
+        component={TestOAuthScreen}
+        options={{
+          animation: 'fade',
+          gestureEnabled: false,
+          animationDuration: 400,
+        }}
+      />
+      
       {/* Splash Screen */}
       <Stack.Screen
         name="Splash"

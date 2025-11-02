@@ -3,7 +3,6 @@
  * Displays a visual checklist of password requirements with smooth transitions and enhanced UX
  * Requirements: 4.1, 4.2, 4.3, 4.4, 6.2, 6.3, 6.4
  */
-
 import { useEffect, useRef, useState } from 'react';
 import { Animated, Text, TouchableOpacity, View } from 'react-native';
 import styles from './PasswordRequirements.styles';
@@ -18,12 +17,12 @@ import styles from './PasswordRequirements.styles';
  * @param {Object} props.style - Additional styles for the container
  * @returns {JSX.Element} Enhanced password requirements checklist
  */
-export const PasswordRequirements = ({ 
-  validation, 
-  showTitle = true, 
+export const PasswordRequirements = ({
+  validation,
+  showTitle = true,
   showTooltips = true,
   showProgress = true,
-  style 
+  style
 }) => {
   // State for managing tooltips and animations
   const [activeTooltip, setActiveTooltip] = useState(null);
@@ -32,51 +31,51 @@ export const PasswordRequirements = ({
 
   // Requirement 4.1: Enhanced requirements with helpful explanations
   const requirements = [
-    { 
-      key: 'length', 
-      label: 'At least 10 characters', 
+    {
+      key: 'length',
+      label: 'At least 10 characters',
       tooltip: 'Longer passwords are harder to crack. Aim for 12+ characters for extra security.',
       met: validation.requirements.length,
       icon: '📏'
     },
-    { 
-      key: 'uppercase', 
-      label: 'At least one uppercase letter (A-Z)', 
+    {
+      key: 'uppercase',
+      label: 'At least one uppercase letter (A-Z)',
       tooltip: 'Include capital letters like A, B, C to increase password complexity.',
       met: validation.requirements.uppercase,
       icon: '🔤'
     },
-    { 
-      key: 'lowercase', 
-      label: 'At least one lowercase letter (a-z)', 
+    {
+      key: 'lowercase',
+      label: 'At least one lowercase letter (a-z)',
       tooltip: 'Include small letters like a, b, c for better password strength.',
       met: validation.requirements.lowercase,
       icon: '🔡'
     },
-    { 
-      key: 'number', 
-      label: 'At least one number (0-9)', 
+    {
+      key: 'number',
+      label: 'At least one number (0-9)',
       tooltip: 'Add numbers like 1, 2, 3 to make your password more secure.',
       met: validation.requirements.number,
       icon: '🔢'
     },
-    { 
-      key: 'special', 
-      label: 'At least one special character', 
+    {
+      key: 'special',
+      label: 'At least one special character',
       tooltip: 'Use symbols like !@#$%^&* to significantly strengthen your password.',
       met: validation.requirements.special,
       icon: '🔣'
     },
-    { 
-      key: 'noPersonalInfo', 
-      label: 'No personal information', 
+    {
+      key: 'noPersonalInfo',
+      label: 'No personal information',
       tooltip: 'Avoid using your name, email, or username in your password.',
       met: validation.requirements.noPersonalInfo,
       icon: '🚫'
     },
-    { 
-      key: 'notCompromised', 
-      label: 'Not found in data breaches', 
+    {
+      key: 'notCompromised',
+      label: 'Not found in data breaches',
       tooltip: 'We check if your password has appeared in known security breaches.',
       met: validation.requirements.notCompromised,
       loading: validation.isCheckingHIBP,
@@ -131,7 +130,7 @@ export const PasswordRequirements = ({
                 {validation.metRequirementsCount}/{validation.totalRequirementsCount} complete
               </Text>
               <View style={styles.progressBar}>
-                <Animated.View 
+                <Animated.View
                   style={[
                     styles.progressFill,
                     {
@@ -140,20 +139,20 @@ export const PasswordRequirements = ({
                         outputRange: ['0%', '100%'],
                       }),
                     }
-                  ]} 
+                  ]}
                 />
               </View>
             </View>
           )}
         </View>
       )}
-      
+
       {requirements.map((req) => {
         const animatedValue = animatedValues.current[req.key];
-        
+
         return (
           <View key={req.key}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.requirementRow}
               onPress={() => showTooltips && toggleTooltip(req.key)}
               activeOpacity={showTooltips ? 0.7 : 1}
@@ -179,9 +178,9 @@ export const PasswordRequirements = ({
                   </Animated.View>
                 )}
               </View>
-              
+
               {/* Enhanced requirement text with animations */}
-              <Animated.View 
+              <Animated.View
                 style={[
                   styles.requirementTextContainer,
                   animatedValue && {
@@ -198,16 +197,16 @@ export const PasswordRequirements = ({
                 ]}>
                   {req.label}
                 </Text>
-                
+
                 {showTooltips && (
                   <Text style={styles.tooltipIndicator}>ℹ️</Text>
                 )}
               </Animated.View>
             </TouchableOpacity>
-            
+
             {/* Tooltip display */}
             {showTooltips && activeTooltip === req.key && (
-              <Animated.View 
+              <Animated.View
                 style={styles.tooltipContainer}
                 entering="fadeIn"
                 exiting="fadeOut"
@@ -218,7 +217,7 @@ export const PasswordRequirements = ({
           </View>
         );
       })}
-      
+
       {/* Overall status message */}
       {validation.isValid && (
         <View style={styles.successContainer}>
@@ -228,7 +227,7 @@ export const PasswordRequirements = ({
           </Text>
         </View>
       )}
-      
+
       {/* HIBP status message */}
       {validation.hibpError && (
         <View style={styles.warningContainer}>

@@ -15,7 +15,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { colors, shadows, spacing, typography } from '../../styles/theme';
+import { spacing } from '../../styles/spacing';
+import { colors, shadows, typography } from '../../styles/theme';
 
 const { width: screenWidth } = Dimensions.get('window');
 

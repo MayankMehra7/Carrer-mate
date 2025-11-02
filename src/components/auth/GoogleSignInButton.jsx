@@ -7,17 +7,30 @@
  * Requirements: 1.1, 5.1
  */
 
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import React, { useState } from 'react';
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Text,
     TouchableOpacity,
     View
 } from 'react-native';
 import { OAuthConfig } from '../../config/oauth';
-import { borderRadius, colors, shadows, spacing, typography } from '../../styles/theme';
+import { spacing } from '../../styles/spacing';
+import { colors } from '../../styles/theme';
+
+// Simple style constants
+const borderRadius = { md: 8 };
+const shadows = { sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }, none: {} };
+const typography = { 
+  styles: { buttonText: { fontSize: 16, fontWeight: '500' } },
+  fontSize: { base: 16 },
+  fontWeight: { medium: '500', bold: '700' }
+};
+
+// Complete the auth session for web browser
+WebBrowser.maybeCompleteAuthSession();
 
 /**
  * Google Sign-In Button Component
@@ -47,28 +60,113 @@ export const GoogleSignInButton = ({
   const isLoading = externalLoading || internalLoading;
   const isDisabled = disabled || isLoading;
 
-  // Configure Google Sign-In
-  React.useEffect(() => {
-    const configureGoogleSignIn = async () => {
-      try {
-        if (!OAuthConfig.google.clientId) {
-          console.warn('Google OAuth Client ID not configured');
-          return;
-        }
+  // Configure OAuth request for web and mobile
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: OAuthConfig.google.clientId,
+      scopes: OAuthConfig.google.scopes,
+      redirectUri: makeRedirectUri({
+        scheme: 'aicarrermateapp',
+        path: 'oauth',
+      }),
+      responseType: 'code',
+      additionalParameters: {},
+      extraParams: {
+        access_type: 'offline',
+      },
+    },
+    {
+      authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+    }
+  );
 
-        await GoogleSignin.configure({
-          webClientId: OAuthConfig.google.clientId,
-          offlineAccess: true,
-          hostedDomain: '',
-          forceCodeForRefreshToken: true,
+  // Handle OAuth response
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { code } = response.params;
+      handleAuthSuccess(code);
+    } else if (response?.type === 'error') {
+      handleAuthError(response.error);
+    } else if (response?.type === 'cancel') {
+      handleAuthCancel();
+    }
+  }, [response]);
+
+  const handleAuthSuccess = async (code) => {
+    try {
+      setLoadingStage('validating');
+      
+      // Exchange code for tokens (this would typically be done on your backend)
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: OAuthConfig.google.clientId,
+          client_secret: OAuthConfig.google.clientSecret,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: makeRedirectUri({
+            scheme: 'aicarrermateapp',
+            path: 'oauth',
+          }),
+        }),
+      });
+
+      const tokens = await tokenResponse.json();
+      
+      if (tokens.access_token) {
+        // Get user info
+        const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+          },
         });
-      } catch (error) {
-        console.error('Google Sign-In configuration error:', error);
+        
+        const userInfo = await userResponse.json();
+        
+        setLoadingStage('completing');
+        onSuccess?.({
+          accessToken: tokens.access_token,
+          idToken: tokens.id_token,
+          user: userInfo,
+          tokens,
+        });
+      } else {
+        throw new Error('No access token received');
       }
-    };
+    } catch (error) {
+      console.error('Google OAuth token exchange error:', error);
+      onError?.({
+        type: 'provider_error',
+        message: 'Failed to complete Google sign-in',
+        originalError: error,
+      });
+    } finally {
+      setInternalLoading(false);
+    }
+  };
 
-    configureGoogleSignIn();
-  }, []);
+  const handleAuthError = (error) => {
+    console.error('Google OAuth error:', error);
+    onError?.({
+      type: 'provider_error',
+      message: error?.description || 'Google sign-in failed',
+      originalError: error,
+    });
+    setInternalLoading(false);
+  };
+
+  const handleAuthCancel = () => {
+    onError?.({
+      type: 'oauth_cancelled',
+      message: 'Google sign-in was cancelled',
+    });
+    setInternalLoading(false);
+  };
 
   /**
    * Handle Google Sign-In process
@@ -77,65 +175,18 @@ export const GoogleSignInButton = ({
     if (isDisabled) return;
 
     setInternalLoading(true);
-    setLoadingStage('initializing');
+    setLoadingStage('authenticating');
 
     try {
-      // Check if Google Play Services are available
-      setLoadingStage('authenticating');
-      await GoogleSignin.hasPlayServices();
-
-      // Sign in with Google
-      setLoadingStage('validating');
-      const userInfo = await GoogleSignin.signIn();
-      
-      if (userInfo?.idToken) {
-        setLoadingStage('completing');
-        // Call success callback with the ID token
-        onSuccess?.({
-          idToken: userInfo.idToken,
-          user: userInfo.user,
-          serverAuthCode: userInfo.serverAuthCode,
-        });
-      } else {
-        throw new Error('No ID token received from Google');
-      }
-
+      // Start the OAuth flow
+      await promptAsync();
     } catch (error) {
-      console.error('Google Sign-In error:', error);
-      
-      let errorMessage = 'Google sign-in failed';
-      
-      // Handle specific error codes
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-        errorMessage = 'oauth_cancelled';
-      } else if (error.code === statusCodes.IN_PROGRESS) {
-        errorMessage = 'Sign-in is already in progress';
-      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        errorMessage = 'play_services_error';
-      } else if (error.code === statusCodes.SIGN_IN_REQUIRED) {
-        errorMessage = 'Sign-in is required';
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      // Don't show alert for cancellation - let parent handle it
-      if (error.code !== statusCodes.SIGN_IN_CANCELLED) {
-        Alert.alert(
-          'Sign-In Error',
-          errorMessage,
-          [{ text: 'OK', style: 'default' }]
-        );
-      }
-
-      // Call error callback with structured error info
+      console.error('Google Sign-In initiation error:', error);
       onError?.({
-        type: error.code === statusCodes.SIGN_IN_CANCELLED ? 'oauth_cancelled' :
-              error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE ? 'play_services_error' :
-              'provider_error',
-        message: errorMessage,
+        type: 'provider_error',
+        message: error.message || 'Failed to start Google sign-in',
         originalError: error,
       });
-    } finally {
       setInternalLoading(false);
     }
   };
@@ -157,23 +208,12 @@ export const GoogleSignInButton = ({
     >
       <View style={styles.buttonContent}>
         {isLoading ? (
-          showProgress ? (
-            <OAuthLoadingIndicator
-              stage={loadingStage}
-              provider="Google"
-              showStage={false}
-              size="small"
-              color={colors.text.secondary}
-              style={styles.loadingIndicator}
-            />
-          ) : (
-            <ActivityIndicator
-              size="small"
-              color={colors.text.secondary}
-              style={styles.loadingIndicator}
-              accessibilityLabel="Loading Google sign-in"
-            />
-          )
+          <ActivityIndicator
+            size="small"
+            color={colors.text.secondary}
+            style={styles.loadingIndicator}
+            accessibilityLabel="Loading Google sign-in"
+          />
         ) : (
           <View style={styles.iconContainer}>
             <GoogleIcon />

@@ -19,7 +19,17 @@ import {
     View
 } from 'react-native';
 import { OAuthConfig, OAuthEndpoints } from '../../config/oauth';
-import { borderRadius, colors, shadows, spacing, typography } from '../../styles/theme';
+import { spacing } from '../../styles/spacing';
+import { colors } from '../../styles/theme';
+
+// Simple style constants
+const borderRadius = { md: 8 };
+const shadows = { sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }, none: {} };
+const typography = { 
+  styles: { buttonText: { fontSize: 16, fontWeight: '500' } },
+  fontSize: { base: 16 },
+  fontWeight: { medium: '500', bold: '700' }
+};
 
 // Complete the auth session for web browser
 WebBrowser.maybeCompleteAuthSession();
@@ -194,23 +204,12 @@ export const GitHubSignInButton = ({
     >
       <View style={styles.buttonContent}>
         {isLoading ? (
-          showProgress ? (
-            <OAuthLoadingIndicator
-              stage={loadingStage}
-              provider="GitHub"
-              showStage={false}
-              size="small"
-              color={colors.white}
-              style={styles.loadingIndicator}
-            />
-          ) : (
-            <ActivityIndicator
-              size="small"
-              color={colors.white}
-              style={styles.loadingIndicator}
-              accessibilityLabel="Loading GitHub sign-in"
-            />
-          )
+          <ActivityIndicator
+            size="small"
+            color={colors.white}
+            style={styles.loadingIndicator}
+            accessibilityLabel="Loading GitHub sign-in"
+          />
         ) : (
           <View style={styles.iconContainer}>
             <GitHubIcon />

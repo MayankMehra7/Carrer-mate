@@ -4,7 +4,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { hibpChecker } from '../utils/hibpApi';
+import { hibpChecker, HIBPError, HIBPErrorTypes } from '../utils/hibpApi';
 
 /**
  * Hook for checking passwords against HIBP database with comprehensive error handling
@@ -135,14 +135,16 @@ export const useHIBPCheck = () => {
         return false; // Return safe default for cancelled requests
       }
 
-      // Successful check
+      // Successful check (including fallback)
       setIsLoading(false);
       setRetryCount(0); // Reset retry count on success
       setLastCheckResult({ 
         checked: true, 
         compromised: isCompromised, 
         timestamp: Date.now(),
-        requestId: result.requestId
+        requestId: result.requestId,
+        usedFallback: result.usedFallback || false,
+        fallbackReason: result.fallbackReason || null
       });
       
       // Update performance metrics
@@ -251,9 +253,15 @@ export const useHIBPCheck = () => {
     
     if (lastCheckResult) {
       if (lastCheckResult.checked) {
-        return lastCheckResult.compromised 
-          ? 'Password found in security breach database'
-          : 'Password not found in known breaches';
+        if (lastCheckResult.usedFallback) {
+          return lastCheckResult.compromised 
+            ? 'Password rejected by local security rules'
+            : 'Password passed local security validation';
+        } else {
+          return lastCheckResult.compromised 
+            ? 'Password found in security breach database'
+            : 'Password not found in known breaches';
+        }
       } else {
         switch (lastCheckResult.reason) {
           case 'minimum_requirements_not_met':
@@ -288,6 +296,38 @@ export const useHIBPCheck = () => {
     setPerformanceMetrics(null);
   }, []);
 
+  /**
+   * Resets the circuit breaker to allow retries
+   */
+  const resetCircuitBreaker = useCallback(() => {
+    hibpChecker.resetCircuitBreaker();
+    setIsServiceAvailable(true);
+    setRetryCount(0);
+  }, []);
+
+  /**
+   * Clears the negative cache to allow retry of previously failed requests
+   */
+  const clearNegativeCache = useCallback(() => {
+    hibpChecker.clearNegativeCache();
+  }, []);
+
+  /**
+   * Gets detailed service status including circuit breaker and cache info
+   */
+  const getServiceStatus = useCallback(() => {
+    const metrics = hibpChecker.getMetrics();
+    return {
+      isAvailable: isServiceAvailable,
+      circuitBreakerState: metrics.circuitBreakerState,
+      cacheSize: metrics.cacheSize,
+      negativeCacheSize: metrics.negativeCacheSize,
+      fallbackRate: metrics.fallbackRate,
+      retryCount,
+      hasRecentFailures: metrics.circuitBreakerFailures > 0
+    };
+  }, [isServiceAvailable, retryCount]);
+
   return {
     // Core functionality
     checkPassword,
@@ -308,11 +348,17 @@ export const useHIBPCheck = () => {
     canRetry: error && retryCount < maxRetries && isServiceAvailable,
     hasRecentResult: lastCheckResult && lastCheckResult.timestamp && 
                     (Date.now() - lastCheckResult.timestamp) < 60000, // 1 minute
+    usedFallback: lastCheckResult?.usedFallback || false,
     
     // Performance monitoring
     performanceMetrics,
     getPerformanceMetrics,
     clearCache,
+    
+    // Enhanced resilience features
+    resetCircuitBreaker,
+    clearNegativeCache,
+    getServiceStatus,
     
     // User-friendly status
     getStatusMessage

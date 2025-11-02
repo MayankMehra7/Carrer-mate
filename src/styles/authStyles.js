@@ -5,7 +5,8 @@
  */
 
 import { Dimensions, StyleSheet } from 'react-native';
-import { borderRadius, colors, layout, shadows, spacing, typography } from './theme';
+import { spacing } from './spacing';
+import { borderRadius, colors, layout, shadows, typography } from './theme';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -433,7 +434,7 @@ export const getResponsiveStyles = (screenWidth) => {
     ],
     contentContainer: [
       authStyles.contentContainer,
-      isSmallScreen && { paddingHorizontal: spacing.base },
+      isSmallScreen && { paddingHorizontal: 16 }, // spacing.base value
     ],
   };
 };

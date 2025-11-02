@@ -9,8 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Animated, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { usePasswordValidation } from '../../hooks/usePasswordValidation';
 import styles from './PasswordInput.styles';
-import PasswordRequirements from './PasswordRequirements';
-import PasswordStrengthMeter from './PasswordStrengthMeter';
+
 
 /**
  * Enhanced password input component with comprehensive UX improvements
@@ -22,9 +21,6 @@ import PasswordStrengthMeter from './PasswordStrengthMeter';
  * @param {Function} props.onValidationChange - Callback to notify parent of validation state
  * @param {Object} props.style - Additional styles for the container
  * @param {string} props.placeholder - Input placeholder text
- * @param {boolean} props.showRequirements - Whether to show requirements checklist (default: true)
- * @param {boolean} props.showStrengthMeter - Whether to show password strength meter (default: true)
- * @param {boolean} props.showErrors - Whether to show error messages (default: true)
  * @param {boolean} props.showTooltips - Whether to show helpful tooltips (default: true)
  * @param {boolean} props.autoFocus - Whether to auto-focus the input (default: false)
  * @param {...Object} props - Additional TextInput props
@@ -38,9 +34,6 @@ export const PasswordInput = ({
   style,
   onValidationChange,
   placeholder = 'Create a strong password',
-  showRequirements = true,
-  showStrengthMeter = true,
-  showErrors = true,
   showTooltips = true,
   autoFocus = false,
   ...props 
@@ -134,36 +127,6 @@ export const PasswordInput = ({
     return placeholder;
   }, [isFocused, placeholder]);
 
-  // Memoized validation state to prevent unnecessary prop drilling
-  const validationProps = useMemo(() => ({
-    validation,
-    showTooltips,
-    showProgress: hasInteracted
-  }), [validation, showTooltips, hasInteracted]);
-
-  // Memoized error display logic
-  const shouldShowErrors = useMemo(() => {
-    return showErrors && validation.errors.length > 0 && hasInteracted;
-  }, [showErrors, validation.errors.length, hasInteracted]);
-
-  // Memoized status text
-  const statusText = useMemo(() => {
-    if (value.length === 0) return null;
-    
-    if (validation.isCheckingHIBP) {
-      return { text: '🔍 Checking security...', style: styles.statusText };
-    } else if (validation.isValid) {
-      return { text: '✅ Strong password!', style: styles.statusTextSuccess };
-    } else if (hasInteracted) {
-      const count = validation.errorCount;
-      return { 
-        text: `⚠️ ${count} requirement${count !== 1 ? 's' : ''} remaining`, 
-        style: styles.statusTextError 
-      };
-    }
-    return null;
-  }, [value.length, validation.isCheckingHIBP, validation.isValid, validation.errorCount, hasInteracted]);
-
   return (
     <View style={[styles.container, style]}>
       {/* Enhanced password input with smooth transitions */}
@@ -214,60 +177,7 @@ export const PasswordInput = ({
             </Text>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Input status indicator */}
-        {statusText && (
-          <View style={styles.statusContainer}>
-            <Text style={statusText.style}>{statusText.text}</Text>
-          </View>
-        )}
       </Animated.View>
-      
-      {/* Password strength meter */}
-      {showStrengthMeter && value.length > 0 && (
-        <PasswordStrengthMeter 
-          password={value} 
-          validation={validation}
-          showScore={hasInteracted}
-        />
-      )}
-      
-      {/* Enhanced requirements checklist */}
-      {showRequirements && (
-        <PasswordRequirements {...validationProps} />
-      )}
-      
-      {/* Enhanced error messages with better UX */}
-      {shouldShowErrors && (
-        <Animated.View 
-          style={styles.errorsContainer}
-          entering="fadeIn"
-          exiting="fadeOut"
-        >
-          <Text style={styles.errorTitle}>
-            💡 To create a stronger password:
-          </Text>
-          {validation.errors.slice(0, 3).map((error, index) => (
-            <Text key={index} style={styles.errorText}>
-              • {error}
-            </Text>
-          ))}
-          {validation.errors.length > 3 && (
-            <Text style={styles.errorText}>
-              • And {validation.errors.length - 3} more requirement{validation.errors.length - 3 !== 1 ? 's' : ''}
-            </Text>
-          )}
-        </Animated.View>
-      )}
-
-      {/* Helpful tips for new users */}
-      {!hasInteracted && value.length === 0 && (
-        <View style={styles.tipsContainer}>
-          <Text style={styles.tipsText}>
-            💡 Tip: Use a mix of letters, numbers, and symbols for the strongest password
-          </Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -279,9 +189,6 @@ export default React.memo(PasswordInput, (prevProps, nextProps) => {
     prevProps.value === nextProps.value &&
     prevProps.username === nextProps.username &&
     prevProps.email === nextProps.email &&
-    prevProps.showRequirements === nextProps.showRequirements &&
-    prevProps.showStrengthMeter === nextProps.showStrengthMeter &&
-    prevProps.showErrors === nextProps.showErrors &&
     prevProps.showTooltips === nextProps.showTooltips &&
     prevProps.autoFocus === nextProps.autoFocus &&
     prevProps.placeholder === nextProps.placeholder

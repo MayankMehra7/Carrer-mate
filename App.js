@@ -1,8 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useContext } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import styles from './App.styles';
+import { initializeFeatureFlags } from './src/config/featureFlags';
 import { AuthContext, AuthProvider } from './src/context/AuthContext';
 import { useAppFonts } from './src/hooks/useFonts';
 
@@ -25,14 +26,40 @@ const Stack = createNativeStackNavigator();
 function AppNavigator() {
   const { user, loadingAuth } = useContext(AuthContext);
   const { fontsLoaded, fontError } = useAppFonts();
+  const [featureFlagsInitialized, setFeatureFlagsInitialized] = useState(false);
+  const [initializingFlags, setInitializingFlags] = useState(true);
 
-  // Simple loading: Show loading screen while auth is loading or fonts are loading
-  if (loadingAuth || (!fontsLoaded && !fontError)) {
+  // Initialize feature flags on app start
+  useEffect(() => {
+    const initFlags = async () => {
+      try {
+        setInitializingFlags(true);
+        const success = await initializeFeatureFlags();
+        setFeatureFlagsInitialized(success);
+        
+        if (!success) {
+          console.warn('Feature flags initialization failed, using defaults');
+        }
+      } catch (error) {
+        console.error('Error initializing feature flags:', error);
+        setFeatureFlagsInitialized(false);
+      } finally {
+        setInitializingFlags(false);
+      }
+    };
+
+    initFlags();
+  }, []);
+
+  // Show loading screen while initializing
+  if (loadingAuth || (!fontsLoaded && !fontError) || initializingFlags) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>
-          {loadingAuth ? 'Loading...' : 'Loading fonts...'}
+          {loadingAuth ? 'Loading...' : 
+           initializingFlags ? 'Initializing features...' : 
+           'Loading fonts...'}
         </Text>
       </View>
     );

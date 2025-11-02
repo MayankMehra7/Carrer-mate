@@ -1,14 +1,16 @@
 // src/screens/Signup.jsx
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Alert, Button, ScrollView, Text, View } from "react-native";
 import { api } from "../api/api";
 import { HeadingText } from "../components/common/HeadingText";
 import { PasswordInput } from "../components/common/PasswordInput";
 import { ValidatedInput } from "../components/common/ValidatedInput";
+import { AuthContext } from "../context/AuthContext";
 import { useValidation } from "../hooks/useValidation";
 import styles from "./Signup.styles";
 
 export default function Signup({ navigation }) {
+  const { loginWithOAuth } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -21,6 +23,7 @@ export default function Signup({ navigation }) {
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [isPasswordValidating, setIsPasswordValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   // Validation hooks for username and email
   const usernameValidation = useValidation('username', formData.username);
@@ -80,6 +83,44 @@ export default function Signup({ navigation }) {
     }
     
     return errors;
+  };
+
+  // Handle OAuth authentication success
+  const handleOAuthSuccess = async (provider, oauthData) => {
+    setOauthLoading(true);
+    
+    try {
+      const result = await loginWithOAuth(provider, oauthData);
+      
+      if (result.ok) {
+        console.log(`${provider} sign-up successful`);
+        // Navigation handled by AuthContext
+      } else {
+        const errorMessage = result.message || `${provider} authentication failed`;
+        Alert.alert("Authentication Error", errorMessage);
+      }
+    } catch (error) {
+      Alert.alert("Network Error", `Network error during ${provider} authentication`);
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  // Handle OAuth authentication errors
+  const handleOAuthError = (provider, error) => {
+    console.error(`${provider} OAuth error:`, error);
+    setOauthLoading(false);
+    
+    // Handle cancellation separately
+    if (error?.type === 'oauth_cancelled' || 
+        (typeof error === 'string' && (error.includes('cancelled') || error.includes('cancel')))) {
+      // User cancelled - no need to show error
+      return;
+    }
+    
+    // Set form error for non-cancellation errors
+    const errorMessage = error?.message || error || `${provider} sign-up failed`;
+    Alert.alert("Authentication Error", errorMessage);
   };
 
   const onSignup = async () => {
@@ -169,11 +210,30 @@ export default function Signup({ navigation }) {
         <Button 
           title={isSubmitting ? "Creating Account..." : "Create Account"}
           onPress={onSignup}
-          disabled={!isFormValid() || isSubmitting} // Requirements 4.5, 5.4: Disable submit button when validation fails or during submission
+          disabled={!isFormValid() || isSubmitting || oauthLoading} // Requirements 4.5, 5.4: Disable submit button when validation fails or during submission
         />
       </View>
+
+      {/* OAuth Section */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or sign up with</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <View style={styles.oauthContainer}>
+        <Text style={{ textAlign: 'center', color: '#666', fontSize: 14 }}>
+          OAuth buttons temporarily disabled for testing
+        </Text>
+      </View>
+
       <View style={styles.buttonContainer}>
-        <Button title="Already have an account? Login" onPress={() => navigation.navigate("Login")} color="#6c757d" />
+        <Button 
+          title="Already have an account? Login" 
+          onPress={() => navigation.navigate("Login")} 
+          color="#6c757d" 
+          disabled={isSubmitting || oauthLoading}
+        />
       </View>
     </ScrollView>
   );

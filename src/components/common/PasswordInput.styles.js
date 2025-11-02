@@ -19,11 +19,14 @@ export default StyleSheet.create({
     borderWidth: 2,
     borderRadius: 10,
     backgroundColor: '#ffffff',
+    // iOS/Android shadow properties
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
+    // Web shadow property
+    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
   },
   
   input: {

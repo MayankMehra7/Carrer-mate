@@ -1,9 +1,16 @@
 /**
  * usePasswordValidation hook - Main password validation interface
  * Integrates all validation rules, HIBP checking, and real-time state management
+ * Uses static imports for Metro bundler compatibility
+ * Requirements: 3.1, 3.2, 3.3, 3.4
  */
 
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+// Static imports for Metro bundler compatibility
+import { FeatureFlags } from '../config/featureFlags';
+import { featureFlagManager } from '../services/FeatureFlagManager';
+import { errorHandlerRegistry } from '../utils/ErrorHandlerRegistry';
+import { ErrorCategory } from '../utils/errorHandling';
 import {
     isPasswordComplexityValid,
     validatePasswordRequirements
@@ -48,8 +55,33 @@ export const usePasswordValidation = (password, username = '', email = '') => {
   const debouncedPassword = useDebounce(password, 1000);
   const hibpCheck = useHIBPCheck();
   
+  // Feature flag state for HIBP validation (Requirements: 3.1, 3.2, 3.3, 3.4)
+  const [hibpEnabled, setHibpEnabled] = useState(true);
+  
   // Performance monitoring
   const performanceMonitor = usePerformanceMonitor();
+
+  // Load HIBP feature flag on component mount
+  useEffect(() => {
+    const loadHIBPFeatureFlag = async () => {
+      try {
+        const enabled = await featureFlagManager.getFlag(FeatureFlags.PASSWORD_VALIDATION_HIBP);
+        setHibpEnabled(enabled);
+        
+        if (!enabled) {
+          console.info('HIBP password validation disabled by feature flag');
+          // Set HIBP as unavailable but don't block validation
+          validationState.setHIBPUnavailable();
+        }
+      } catch (error) {
+        console.warn('Could not load HIBP feature flag, defaulting to enabled:', error);
+        // Default to enabled if feature flag service is unavailable (Requirements: 3.4)
+        setHibpEnabled(true);
+      }
+    };
+
+    loadHIBPFeatureFlag();
+  }, []);
 
   // Real-time validation for complexity requirements (Requirements 1.1-1.5, 2.1-2.4)
   useEffect(() => {
@@ -72,10 +104,11 @@ export const usePasswordValidation = (password, username = '', email = '') => {
     performanceMonitor.recordValidation(duration, 'complexity');
   }, [password, username, email]);
 
-  // HIBP check for debounced password - only check when minimum requirements are met
+  // HIBP check for debounced password - only check when minimum requirements are met and HIBP is enabled
   useEffect(() => {
-    // Requirement 3.1: Only perform HIBP check when password meets basic requirements
-    if (debouncedPassword && 
+    // Requirement 3.1: Only perform HIBP check when password meets basic requirements and feature is enabled
+    if (hibpEnabled && 
+        debouncedPassword && 
         debouncedPassword.length >= 10 && 
         isPasswordComplexityValid(debouncedPassword, username, email)) {
       
@@ -84,8 +117,11 @@ export const usePasswordValidation = (password, username = '', email = '') => {
       // Reset HIBP status for passwords that don't meet minimum length
       validationState.updateRequirement('notCompromised', null);
       validationState.setHIBPChecking(false);
+    } else if (!hibpEnabled && debouncedPassword) {
+      // HIBP is disabled by feature flag - mark as unavailable but don't block validation
+      validationState.setHIBPUnavailable();
     }
-  }, [debouncedPassword, username, email]);
+  }, [debouncedPassword, username, email, hibpEnabled]);
 
   /**
    * Performs HIBP check with enhanced error handling and performance monitoring
@@ -119,13 +155,12 @@ export const usePasswordValidation = (password, username = '', email = '') => {
       }
       
     } catch (error) {
-      // Requirement 3.4, 3.5: Enhanced error handling with comprehensive fallback behavior
-      const { passwordValidationErrorHandler } = await import('../utils/errorHandling');
-      const errorResult = passwordValidationErrorHandler.handleHIBPError(error, 'HIBP_PASSWORD_CHECK');
+      // Requirement 3.4, 3.5: Enhanced error handling using centralized registry with static imports
+      const errorResult = errorHandlerRegistry.handleError(error, 'HIBP_PASSWORD_CHECK', ErrorCategory.API);
       
       // Set appropriate state based on error handling result
       if (errorResult.shouldFallback) {
-        // Graceful fallback - allow password creation
+        // Graceful fallback - allow password creation to continue
         validationState.setHIBPUnavailable();
         console.info(`HIBP check failed gracefully: ${errorResult.userMessage}`);
       } else {
@@ -137,13 +172,15 @@ export const usePasswordValidation = (password, username = '', email = '') => {
       const duration = performance.now() - startTime;
       performanceMonitor.recordHIBPCheck(duration, false, false);
       
-      // Log additional error context for debugging
+      // Log additional error context for debugging including performance metrics
       if (isDevelopment) {
         console.warn('HIBP Error Details:', {
-          errorType: errorResult.errorType,
+          errorType: errorResult.category,
           severity: errorResult.severity,
           canRetry: errorResult.canRetry,
-          userMessage: errorResult.userMessage
+          userMessage: errorResult.userMessage,
+          handlerUsed: errorResult.handlerUsed,
+          performanceMetrics: errorResult.performanceMetrics
         });
       }
     }
@@ -151,12 +188,16 @@ export const usePasswordValidation = (password, username = '', email = '') => {
 
   /**
    * Manually trigger HIBP check (useful for retry scenarios)
+   * Requirements: 3.4 - Respect feature flag settings
    */
   const recheckHIBP = useCallback(() => {
-    if (password && isPasswordComplexityValid(password, username, email)) {
+    if (hibpEnabled && password && isPasswordComplexityValid(password, username, email)) {
       checkPasswordWithHIBP(password);
+    } else if (!hibpEnabled) {
+      console.info('HIBP recheck skipped - feature disabled by flag');
+      validationState.setHIBPUnavailable();
     }
-  }, [password, username, email, checkPasswordWithHIBP]);
+  }, [password, username, email, checkPasswordWithHIBP, hibpEnabled]);
 
   /**
    * Reset validation state (useful when clearing form)
@@ -178,14 +219,16 @@ export const usePasswordValidation = (password, username = '', email = '') => {
   }, [validationState]);
 
   /**
-   * Check if password meets minimum requirements for HIBP check
+   * Check if password meets minimum requirements for HIBP check and feature is enabled
    * @returns {boolean} True if password should be checked against HIBP
+   * Requirements: 3.4 - Consider feature flag status
    */
   const shouldCheckHIBP = useCallback(() => {
-    return password && 
+    return hibpEnabled && 
+           password && 
            password.length >= 10 && 
            isPasswordComplexityValid(password, username, email);
-  }, [password, username, email]);
+  }, [password, username, email, hibpEnabled]);
 
   // Requirement 6.5: Clear errors immediately when requirements are satisfied
   useEffect(() => {
@@ -205,6 +248,7 @@ export const usePasswordValidation = (password, username = '', email = '') => {
     // Additional state from HIBP hook
     hibpError: hibpCheck.error,
     hasActiveHIBPRequest: hibpCheck.hasActiveRequest,
+    hibpEnabled, // Expose feature flag status
     
     // Enhanced state management properties
     hasErrors: validationState.hasErrors,

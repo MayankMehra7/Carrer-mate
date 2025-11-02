@@ -6,8 +6,10 @@
  */
 
 import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { usePasswordValidation } from '../../hooks/usePasswordValidation';
+import { spacing } from '../../styles/spacing';
+import { borderRadius, colors, typography } from '../../styles/theme';
 
 /**
  * Conditional password validation display component

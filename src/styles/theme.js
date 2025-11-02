@@ -4,6 +4,8 @@
  * Based on the CareerMate brand and contemporary mobile app design patterns
  */
 
+import { spacing } from './spacing';
+
 export const colors = {
   // Primary brand colors (blue theme from the image)
   primary: '#2563EB',        // Main blue
@@ -203,39 +205,7 @@ export const typography = {
   },
 };
 
-export const spacing = {
-  // Base spacing unit (4px)
-  unit: 4,
-  
-  // Spacing scale
-  xs: 4,
-  sm: 8,
-  md: 12,
-  base: 16,
-  lg: 20,
-  xl: 24,
-  '2xl': 32,
-  '3xl': 40,
-  '4xl': 48,
-  '5xl': 64,
-  '6xl': 80,
-  
-  // Semantic spacing
-  padding: {
-    xs: 8,
-    sm: 12,
-    base: 16,
-    lg: 20,
-    xl: 24,
-  },
-  margin: {
-    xs: 8,
-    sm: 12,
-    base: 16,
-    lg: 20,
-    xl: 24,
-  },
-};
+
 
 export const borderRadius = {
   none: 0,
@@ -250,11 +220,14 @@ export const borderRadius = {
 export const shadows = {
   none: 'none',
   sm: {
+    // iOS/Android shadow properties
     shadowColor: colors.black,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+    // Web shadow property
+    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
   },
   base: {
     shadowColor: colors.black,
@@ -262,6 +235,7 @@ export const shadows = {
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
   },
   md: {
     shadowColor: colors.black,
@@ -269,6 +243,7 @@ export const shadows = {
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 4,
+    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.15)',
   },
   lg: {
     shadowColor: colors.black,
@@ -276,6 +251,7 @@ export const shadows = {
     shadowOpacity: 0.2,
     shadowRadius: 16,
     elevation: 8,
+    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
   },
   
   // Colored shadows for focus states
@@ -285,6 +261,7 @@ export const shadows = {
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
+    boxShadow: '0 0 4px rgba(37, 99, 235, 0.15)',
   },
   error: {
     shadowColor: colors.error,
@@ -292,6 +269,7 @@ export const shadows = {
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
+    boxShadow: '0 0 4px rgba(239, 68, 68, 0.15)',
   },
   success: {
     shadowColor: colors.success,
@@ -299,6 +277,7 @@ export const shadows = {
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 2,
+    boxShadow: '0 0 4px rgba(16, 185, 129, 0.15)',
   },
 };
 

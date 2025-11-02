@@ -59,3 +59,45 @@ export interface NavigationEvent {
   to: string;
   data?: any;
 }
+
+// Feature Flag types
+export interface FeatureFlagData {
+  name: string;
+  enabled: boolean;
+  defaultValue: boolean;
+  lastUpdated: string;
+  source: 'remote' | 'cache' | 'default';
+}
+
+export interface FeatureFlagManagerOptions {
+  apiEndpoint?: string;
+  cacheTtlMs?: number;
+  requestTimeout?: number;
+  retryAttempts?: number;
+  retryDelay?: number;
+  serviceCheckInterval?: number;
+}
+
+export interface FeatureFlagStats {
+  serviceHealthy: boolean;
+  lastServiceCheck: Date | null;
+  requestCount: number;
+  errorCount: number;
+  fallbackCount: number;
+  errorRate: number;
+  fallbackRate: number;
+  cache: {
+    size: number;
+    hitCount: number;
+    missCount: number;
+    hitRate: number;
+    totalRequests: number;
+  };
+  defaultFlagsCount: number;
+  configuration: {
+    apiEndpoint: string;
+    requestTimeout: number;
+    retryAttempts: number;
+    serviceCheckInterval: number;
+  };
+}

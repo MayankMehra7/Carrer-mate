@@ -1,18 +1,58 @@
 import { useContext, useState } from "react";
 import { Alert, Button, Pressable, Text, TextInput, View } from "react-native";
+import SimpleOAuthTest from "../components/auth/SimpleOAuthTest";
 import { HeadingText } from "../components/common/HeadingText";
 import { AuthContext } from "../context/AuthContext";
 import styles from "./Login.styles";
 
 export default function Login({ navigation }) {
-  const { login } = useContext(AuthContext);
+  const { login, loginWithOAuth } = useContext(AuthContext);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
 
   const onLogin = async () => {
     const res = await login(identifier, password);
     if (!res.ok) Alert.alert("Login failed", res.message || "Try again");
+  };
+
+  // Handle OAuth authentication success
+  const handleOAuthSuccess = async (provider, oauthData) => {
+    setOauthLoading(true);
+    
+    try {
+      const result = await loginWithOAuth(provider, oauthData);
+      
+      if (result.ok) {
+        console.log(`${provider} sign-in successful`);
+        // Navigation handled by AuthContext
+      } else {
+        const errorMessage = result.message || `${provider} authentication failed`;
+        Alert.alert("Authentication Error", errorMessage);
+      }
+    } catch (error) {
+      Alert.alert("Network Error", `Network error during ${provider} authentication`);
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
+  // Handle OAuth authentication errors
+  const handleOAuthError = (provider, error) => {
+    console.error(`${provider} OAuth error:`, error);
+    setOauthLoading(false);
+    
+    // Handle cancellation separately
+    if (error?.type === 'oauth_cancelled' || 
+        (typeof error === 'string' && (error.includes('cancelled') || error.includes('cancel')))) {
+      // User cancelled - no need to show error
+      return;
+    }
+    
+    // Set form error for non-cancellation errors
+    const errorMessage = error?.message || error || `${provider} sign-in failed`;
+    Alert.alert("Authentication Error", errorMessage);
   };
 
   return (
@@ -56,13 +96,26 @@ export default function Login({ navigation }) {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Login" onPress={onLogin} />
+        <Button title="Login" onPress={onLogin} disabled={oauthLoading} />
       </View>
+
+      {/* OAuth Section */}
+      <View style={styles.dividerContainer}>
+        <View style={styles.dividerLine} />
+        <Text style={styles.dividerText}>or continue with</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <View style={styles.oauthContainer}>
+        <SimpleOAuthTest />
+      </View>
+
       <View style={styles.buttonContainer}>
         <Button
           title="Create Account"
           onPress={() => navigation.navigate("Signup")}
           color="#28a745"
+          disabled={oauthLoading}
         />
       </View>
       <View style={styles.buttonContainer}>
@@ -70,6 +123,7 @@ export default function Login({ navigation }) {
           title="Forgot Password?"
           onPress={() => navigation.navigate("ForgotPassword")}
           color="#6c757d"
+          disabled={oauthLoading}
         />
       </View>
     </View>
