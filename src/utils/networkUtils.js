@@ -5,7 +5,7 @@
  * for OAuth authentication flows.
  */
 
-import NetInfo from '@react-native-netinfo/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 import { OAuthError, OAuthErrorTypes } from './oauthErrors';
 
 // Network configuration

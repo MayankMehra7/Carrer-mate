@@ -38,6 +38,17 @@ export default function JobDescriptionCover({ navigation }) {
       return Alert.alert("Error", "Please paste the job description");
     }
 
+    // Check if user has email
+    if (!user?.email) {
+      return Alert.alert(
+        "Session Error", 
+        "Your session is missing email information. Please log out and log back in.",
+        [
+          { text: "OK" }
+        ]
+      );
+    }
+
     if (!hasResume) {
       return Alert.alert(
         "No Resume Found", 

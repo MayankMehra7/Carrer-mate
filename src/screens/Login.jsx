@@ -1,58 +1,25 @@
 import { useContext, useState } from "react";
-import { Alert, Button, Pressable, Text, TextInput, View } from "react-native";
-import SimpleOAuthTest from "../components/auth/SimpleOAuthTest";
+import { Alert, View, Text } from "react-native";
 import { HeadingText } from "../components/common/HeadingText";
+import { ComprehensiveOAuthButton } from "../components/oauth/ComprehensiveOAuthButton";
+import StyledButton from "../components/common/StyledButton";
+import StyledTextInput from "../components/common/StyledTextInput";
 import { AuthContext } from "../context/AuthContext";
 import styles from "./Login.styles";
 
 export default function Login({ navigation }) {
-  const { login, loginWithOAuth } = useContext(AuthContext);
+  const { login } = useContext(AuthContext);
+  
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const onLogin = async () => {
+    setLoading(true);
     const res = await login(identifier, password);
     if (!res.ok) Alert.alert("Login failed", res.message || "Try again");
-  };
-
-  // Handle OAuth authentication success
-  const handleOAuthSuccess = async (provider, oauthData) => {
-    setOauthLoading(true);
-    
-    try {
-      const result = await loginWithOAuth(provider, oauthData);
-      
-      if (result.ok) {
-        console.log(`${provider} sign-in successful`);
-        // Navigation handled by AuthContext
-      } else {
-        const errorMessage = result.message || `${provider} authentication failed`;
-        Alert.alert("Authentication Error", errorMessage);
-      }
-    } catch (error) {
-      Alert.alert("Network Error", `Network error during ${provider} authentication`);
-    } finally {
-      setOauthLoading(false);
-    }
-  };
-
-  // Handle OAuth authentication errors
-  const handleOAuthError = (provider, error) => {
-    console.error(`${provider} OAuth error:`, error);
-    setOauthLoading(false);
-    
-    // Handle cancellation separately
-    if (error?.type === 'oauth_cancelled' || 
-        (typeof error === 'string' && (error.includes('cancelled') || error.includes('cancel')))) {
-      // User cancelled - no need to show error
-      return;
-    }
-    
-    // Set form error for non-cancellation errors
-    const errorMessage = error?.message || error || `${provider} sign-in failed`;
-    Alert.alert("Authentication Error", errorMessage);
+    setLoading(false);
   };
 
   return (
@@ -62,42 +29,26 @@ export default function Login({ navigation }) {
       </HeadingText>
       <Text style={styles.subtitle}>Sign in to your account</Text>
 
-      <Text style={styles.label}>Email or Username</Text>
-      <TextInput
+      <StyledTextInput
+        label="Email or Username"
         value={identifier}
         onChangeText={setIdentifier}
-        style={styles.input}
         placeholder="Enter your email or username"
         autoCapitalize="none"
         autoComplete="username"
         textContentType="username"
       />
-      <Text style={styles.helperText}>You can login with either your email address or username</Text>
 
-      <Text style={styles.label}>Password</Text>
-      <View style={styles.relativeContainer}>
-        <TextInput
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry={!showPassword}
-          style={[styles.input, styles.inputWithToggle]}
-          autoComplete="password"
-        />
-        <Pressable
-          onPress={() => setShowPassword((prev) => !prev)}
-          accessibilityRole="button"
-          accessibilityLabel={showPassword ? "Hide password" : "Show password"}
-          style={styles.toggle}
-        >
-          <Text style={styles.toggleText}>
-            {showPassword ? "Hide" : "Show"}
-          </Text>
-        </Pressable>
-      </View>
+      <StyledTextInput
+        label="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry={!showPassword}
+        rightIcon={showPassword ? "eye-off" : "eye"}
+        onRightIconPress={() => setShowPassword(!showPassword)}
+      />
 
-      <View style={styles.buttonContainer}>
-        <Button title="Login" onPress={onLogin} disabled={oauthLoading} />
-      </View>
+      <StyledButton title="Login" onPress={onLogin} loading={loading} />
 
       {/* OAuth Section */}
       <View style={styles.dividerContainer}>
@@ -107,25 +58,35 @@ export default function Login({ navigation }) {
       </View>
 
       <View style={styles.oauthContainer}>
-        <SimpleOAuthTest />
+        <ComprehensiveOAuthButton
+          provider="google"
+          onSuccess={(result) => {
+            console.log('Google OAuth successful!', result);
+            // Navigation will happen automatically via AuthContext user state change
+          }}
+          onError={(error) => Alert.alert('OAuth Error', error.message || 'Google authentication failed')}
+        />
+        <View style={{ height: 10 }} />
+        <ComprehensiveOAuthButton
+          provider="github"
+          onSuccess={(result) => {
+            console.log('GitHub OAuth successful!', result);
+            // Navigation will happen automatically via AuthContext user state change
+          }}
+          onError={(error) => Alert.alert('OAuth Error', error.message || 'GitHub authentication failed')}
+        />
       </View>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Create Account"
-          onPress={() => navigation.navigate("Signup")}
-          color="#28a745"
-          disabled={oauthLoading}
-        />
-      </View>
-      <View style={styles.buttonContainer}>
-        <Button
-          title="Forgot Password?"
-          onPress={() => navigation.navigate("ForgotPassword")}
-          color="#6c757d"
-          disabled={oauthLoading}
-        />
-      </View>
+      <StyledButton
+        title="Create Account"
+        onPress={() => navigation.navigate("Signup")}
+        style={{ marginTop: 10, backgroundColor: '#28a745' }}
+      />
+      <StyledButton
+        title="Forgot Password?"
+        onPress={() => navigation.navigate("ForgotPassword")}
+        style={{ marginTop: 10, backgroundColor: '#6c757d' }}
+      />
     </View>
   );
 }

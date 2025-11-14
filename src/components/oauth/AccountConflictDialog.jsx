@@ -5,7 +5,7 @@
  * but an account with the same email already exists with different authentication methods.
  */
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import {
     ActivityIndicator,
     Modal,
@@ -14,7 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { AuthContext } from '../../context/AuthContext';
 import { OAuthErrorTypes } from '../../utils/oauthErrors';
 
 export const AccountConflictDialog = ({
@@ -26,9 +26,19 @@ export const AccountConflictDialog = ({
 }) => {
   const [isLinking, setIsLinking] = useState(false);
   const [linkingError, setLinkingError] = useState(null);
-  const { linkOAuthProvider } = useAuth();
-
-  if (!conflictData) return null;
+  
+  // useContext must be called unconditionally
+  const authContext = useContext(AuthContext);
+  const linkOAuthProvider = authContext?.linkOAuthProvider;
+  
+  // Early return if no conflict data or not visible
+  if (!visible || !conflictData) return null;
+  
+  // Early return if context not available
+  if (!linkOAuthProvider) {
+    console.warn('AccountConflictDialog: linkOAuthProvider not available');
+    return null;
+  }
 
   const {
     email,

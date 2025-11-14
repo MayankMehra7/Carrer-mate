@@ -1,20 +1,24 @@
 import datetime
 import random, string, secrets
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ---------- USER MANAGEMENT ----------
 
 def get_user(mongo, email):
     from db import hash_email
     email_hash = hash_email(email)
-    return mongo.db.users.find_one({"email_hash": email_hash})
+    # mongo is the database object, not the client
+    return mongo.users.find_one({"email_hash": email_hash})
 
 def get_user_by_username(mongo, username):
-    return mongo.db.users.find_one({"username_lower": username.lower()})
+    return mongo.users.find_one({"username_lower": username.lower()})
 
 def get_user_by_oauth_provider(mongo, provider, provider_user_id):
     """Get user by OAuth provider and provider user ID"""
     query = {f"oauth_providers.{provider}.id": provider_user_id}
-    return mongo.db.users.find_one(query)
+    return mongo.users.find_one(query)
 
 def link_oauth_provider(mongo, user_email, provider, oauth_data):
     """Link an OAuth provider to an existing user account"""
@@ -33,11 +37,11 @@ def link_oauth_provider(mongo, user_email, provider, oauth_data):
     }
     
     # Add provider to login_methods if not already present
-    user = mongo.db.users.find_one({"email_hash": email_hash})
+    user = mongo.users.find_one({"email_hash": email_hash})
     if user and provider not in user.get("login_methods", []):
         update_doc["$addToSet"] = {"login_methods": provider}
     
-    return mongo.db.users.update_one(
+    return mongo.users.update_one(
         {"email_hash": email_hash},
         {"$set": update_doc}
     )
@@ -48,7 +52,7 @@ def unlink_oauth_provider(mongo, user_email, provider):
     email_hash = hash_email(user_email)
     
     # Remove OAuth provider data and update login methods
-    return mongo.db.users.update_one(
+    return mongo.users.update_one(
         {"email_hash": email_hash},
         {
             "$unset": {f"oauth_providers.{provider}": ""},
@@ -61,7 +65,7 @@ def update_user_last_login(mongo, user_email):
     from db import hash_email
     email_hash = hash_email(user_email)
     
-    return mongo.db.users.update_one(
+    return mongo.users.update_one(
         {"email_hash": email_hash},
         {"$set": {"last_login": datetime.datetime.utcnow()}}
     )
@@ -96,42 +100,42 @@ def create_user(mongo, name, username, email, password=None, oauth_provider=None
         if not password:
             user_doc["login_methods"] = [oauth_provider]
     
-    mongo.db.users.insert_one(user_doc)
+    mongo.users.insert_one(user_doc)
 
 # ---------- OTP + PENDING USER ----------
 
 def generate_otp(mongo, email):
     otp = "".join(random.choices(string.digits, k=6))
     expiry = datetime.datetime.utcnow() + datetime.timedelta(minutes=5)
-    mongo.db.otps.update_one({"email": email}, {"$set": {"otp": otp, "expiry": expiry}}, upsert=True)
+    mongo.otps.update_one({"email": email}, {"$set": {"otp": otp, "expiry": expiry}}, upsert=True)
     return otp
 
 def verify_otp(mongo, email, otp):
-    record = mongo.db.otps.find_one({"email": email})
+    record = mongo.otps.find_one({"email": email})
     if record and record["otp"] == otp and record["expiry"] > datetime.datetime.utcnow():
-        mongo.db.otps.delete_one({"email": email})
+        mongo.otps.delete_one({"email": email})
         return True
     return False
 
 def store_pending_user(mongo, data):
     """Stores temporary signup data until OTP verified."""
     email = data["email"]
-    mongo.db.pending_users.update_one({"email": email}, {"$set": {
+    mongo.pending_users.update_one({"email": email}, {"$set": {
         **data,
         "created_at": datetime.datetime.utcnow(),
         "expires_at": datetime.datetime.utcnow() + datetime.timedelta(minutes=10)
     }}, upsert=True)
 
 def get_pending_user(mongo, email):
-    return mongo.db.pending_users.find_one({"email": email})
+    return mongo.pending_users.find_one({"email": email})
 
 def delete_pending_user(mongo, email):
-    mongo.db.pending_users.delete_one({"email": email})
+    mongo.pending_users.delete_one({"email": email})
 
 def cleanup_expired_pending_users(mongo):
     """Remove unverified users after expiry (10 min default)."""
     now = datetime.datetime.utcnow()
-    result = mongo.db.pending_users.delete_many({"expires_at": {"$lt": now}})
+    result = mongo.pending_users.delete_many({"expires_at": {"$lt": now}})
     return result.deleted_count
 
 # ---------- TOKENS ----------
@@ -139,11 +143,11 @@ def cleanup_expired_pending_users(mongo):
 def create_token(mongo, email):
     token = secrets.token_hex(16)
     expiry = datetime.datetime.utcnow() + datetime.timedelta(days=7)
-    mongo.db.tokens.update_one({"email": email}, {"$set": {"token": token, "expiry": expiry}}, upsert=True)
+    mongo.tokens.update_one({"email": email}, {"$set": {"token": token, "expiry": expiry}}, upsert=True)
     return token
 
 def verify_token(mongo, token):
-    record = mongo.db.tokens.find_one({"token": token})
+    record = mongo.tokens.find_one({"token": token})
     if record and record["expiry"] > datetime.datetime.utcnow():
         return record["email"]
     return None
@@ -155,8 +159,8 @@ def create_oauth_session(mongo, user_id, provider, provider_user_id, access_toke
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Create session with comprehensive tracking
         session = session_manager.create_session(
@@ -182,8 +186,8 @@ def get_oauth_session(mongo, user_id, provider):
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Get session with automatic expiration handling
         session = session_manager.get_session(user_id, provider)
@@ -196,7 +200,7 @@ def get_oauth_session(mongo, user_id, provider):
 
 def update_oauth_session_usage(mongo, user_id, provider):
     """Update last_used timestamp for OAuth session"""
-    return mongo.db.oauth_sessions.update_one(
+    return mongo.oauth_sessions.update_one(
         {"user_id": user_id, "provider": provider},
         {"$set": {"last_used": datetime.datetime.utcnow()}}
     )
@@ -206,8 +210,8 @@ def delete_oauth_session(mongo, user_id, provider):
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Get the session first
         session = session_manager.get_session(user_id, provider)
@@ -229,8 +233,8 @@ def cleanup_expired_oauth_sessions(mongo):
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Cleanup expired sessions
         expired_count = session_manager.cleanup_expired_sessions()
@@ -250,8 +254,8 @@ def get_user_oauth_sessions(mongo, user_id):
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Get user sessions with automatic expiration handling
         sessions = session_manager.get_user_sessions(user_id, active_only=True)
@@ -288,8 +292,8 @@ def refresh_oauth_token(mongo, user_id, provider, new_access_token, new_refresh_
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Get existing session
         session = session_manager.get_session(user_id, provider)
@@ -316,8 +320,8 @@ def log_oauth_activity(mongo, user_id, action, provider, details=None, session_i
     from utils.oauth_session_manager import OAuthAuditLogger
     
     try:
-        # Initialize audit logger
-        audit_logger = OAuthAuditLogger(mongo.db)
+        # Initialize audit logger - mongo is the database object
+        audit_logger = OAuthAuditLogger(mongo)
         
         # Log the OAuth event
         audit_logger.log_oauth_event(
@@ -338,8 +342,8 @@ def get_oauth_audit_log(mongo, user_id, limit=100):
     from utils.oauth_session_manager import OAuthAuditLogger
     
     try:
-        # Initialize audit logger
-        audit_logger = OAuthAuditLogger(mongo.db)
+        # Initialize audit logger - mongo is the database object
+        audit_logger = OAuthAuditLogger(mongo)
         
         # Get audit log entries
         return audit_logger.get_user_audit_log(user_id, limit)
@@ -353,8 +357,8 @@ def get_oauth_session_statistics(mongo, user_id=None):
     from utils.oauth_session_manager import OAuthSessionManager
     
     try:
-        # Initialize session manager
-        session_manager = OAuthSessionManager(mongo.db)
+        # Initialize session manager - mongo is the database object
+        session_manager = OAuthSessionManager(mongo)
         
         # Get session statistics
         return session_manager.get_session_statistics(user_id)

@@ -11,6 +11,7 @@ import { Easing } from 'react-native';
 import LoginScreen from '../screens/auth/LoginScreen';
 import SignupScreen from '../screens/auth/SignupScreen';
 import SplashScreen from '../screens/SplashScreen';
+import TestOAuthScreen from '../screens/TestOAuthScreen';
 
 // Import theme
 import { colors } from '../styles/theme';

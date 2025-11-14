@@ -1,78 +1,25 @@
 import { StyleSheet } from 'react-native';
 
-export default StyleSheet.create({
+const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    backgroundColor: '#f5f5f5',
     flex: 1,
     justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     textAlign: 'center',
     marginBottom: 10,
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#333',
   },
   subtitle: {
     textAlign: 'center',
-    fontSize: 16,
-    color: '#666666',
     marginBottom: 30,
-  },
-  label: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#000000',
+    color: '#666',
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#ffffff',
-    marginBottom: 15,
-    fontSize: 16,
-    color: '#000000',
-    height: 48,
-  },
-  inputWithToggle: {
-    paddingRight: 60, // gives space for Show/Hide text
-    marginBottom: 0,
-  },
-  relativeContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    marginBottom: 15,
-  },
-  toggle: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-    bottom: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    zIndex: 1,
-    minHeight: 24,
-  },
-  toggleText: {
-    color: '#0d6efd',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  buttonContainer: {
-    marginBottom: 10,
-  },
-  helperText: {
-    fontSize: 12,
-    color: '#666666',
-    marginBottom: 15,
-    marginTop: -10,
-    fontStyle: 'italic',
-  },
-  
-  // OAuth styles
   dividerContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -81,20 +28,15 @@ export default StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#dddddd',
+    backgroundColor: '#ccc',
   },
   dividerText: {
-    marginHorizontal: 15,
-    color: '#666666',
-    fontSize: 14,
+    marginHorizontal: 10,
+    color: '#666',
   },
-  
   oauthContainer: {
     marginBottom: 20,
-    gap: 10,
-  },
-  
-  oauthButton: {
-    marginBottom: 10,
   },
 });
+
+export default styles;

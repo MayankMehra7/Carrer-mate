@@ -1,21 +1,51 @@
 // src/context/AuthContext.jsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { createContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { api } from "../api/api";
 import { OAuthService } from "../services/OAuthService";
 
 export const AuthContext = createContext();
+
+// Backward compatibility hook - use useContext(AuthContext) directly in new code
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      const stored = await AsyncStorage.getItem("user");
-      if (stored) setUser(JSON.parse(stored));
-      setLoadingAuth(false);
-    })();
+    // Optimize loading: set timeout to prevent blocking
+    let mounted = true;
+    const loadUser = async () => {
+      try {
+        // Use Promise.race to prevent long blocking
+        const stored = await Promise.race([
+          AsyncStorage.getItem("user"),
+          new Promise(resolve => setTimeout(() => resolve(null), 100)) // 100ms timeout
+        ]);
+        if (mounted && stored) {
+          try {
+            setUser(JSON.parse(stored));
+          } catch (e) {
+            console.warn("Failed to parse stored user:", e);
+          }
+        }
+      } catch (error) {
+        console.warn("Error loading user from storage:", error);
+      } finally {
+        if (mounted) {
+          setLoadingAuth(false);
+        }
+      }
+    };
+    
+    loadUser();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const login = async (identifier, password) => {

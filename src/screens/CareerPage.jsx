@@ -1,6 +1,6 @@
 // src/screens/CareerPage.jsx
 import { useContext, useEffect, useState } from "react";
-import { Button, ScrollView, Text, View } from "react-native";
+import { Button, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { HeadingText } from "../components/common/HeadingText";
 import { FeatureFlagHelpers, FeatureFlags } from "../config/featureFlags";
 import { AuthContext } from "../context/AuthContext";
@@ -9,6 +9,9 @@ import styles from "./CareerPage.styles";
 
 export default function CareerPage({ navigation }) {
   const { user, logout } = useContext(AuthContext);
+  
+  // Loading state
+  const [isLoadingFlags, setIsLoadingFlags] = useState(true);
   
   // Feature flag state
   const [featureFlags, setFeatureFlags] = useState({
@@ -25,6 +28,8 @@ export default function CareerPage({ navigation }) {
   useEffect(() => {
     const loadFeatureFlags = async () => {
       try {
+        console.log('[CareerPage] Loading feature flags...');
+        
         // Load all relevant feature flags (Requirements: 3.1, 3.2, 3.3, 3.4)
         const flags = await FeatureFlagHelpers.getMultipleFlags([
           FeatureFlags.RESUME_TEMPLATES_ENABLED,
@@ -36,6 +41,15 @@ export default function CareerPage({ navigation }) {
           FeatureFlags.DEBUG_MODE,
         ]);
 
+        console.log('[CareerPage] Loaded flags:', flags);
+        console.log('[CareerPage] Flag values:', {
+          resumeTemplatesEnabled: flags[FeatureFlags.RESUME_TEMPLATES_ENABLED],
+          aiSuggestionsEnabled: flags[FeatureFlags.AI_SUGGESTIONS_ENABLED],
+          resumeUploadEnabled: flags[FeatureFlags.RESUME_UPLOAD_ENABLED],
+          coverLetterGeneration: flags[FeatureFlags.COVER_LETTER_GENERATION],
+          jobDescriptionParsing: flags[FeatureFlags.JOB_DESCRIPTION_PARSING],
+        });
+
         setFeatureFlags({
           resumeTemplatesEnabled: flags[FeatureFlags.RESUME_TEMPLATES_ENABLED],
           aiSuggestionsEnabled: flags[FeatureFlags.AI_SUGGESTIONS_ENABLED],
@@ -45,9 +59,30 @@ export default function CareerPage({ navigation }) {
           liveEditDemo: flags[FeatureFlags.LIVE_EDIT_DEMO],
           debugMode: flags[FeatureFlags.DEBUG_MODE],
         });
+        
+        console.log('[CareerPage] Feature flags set successfully');
       } catch (error) {
-        console.error('Error loading feature flags for CareerPage:', error);
-        // Keep default values if feature flag loading fails
+        console.error('[CareerPage] Error loading feature flags:', error);
+        console.error('[CareerPage] Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
+        
+        // Explicitly set default feature flags in catch block
+        setFeatureFlags({
+          resumeTemplatesEnabled: true,
+          aiSuggestionsEnabled: true,
+          resumeUploadEnabled: true,
+          coverLetterGeneration: true,
+          jobDescriptionParsing: true,
+          liveEditDemo: false,
+          debugMode: false,
+        });
+        
+        console.log('[CareerPage] Default feature flags set after error');
+      } finally {
+        setIsLoadingFlags(false);
       }
     };
 
@@ -55,113 +90,126 @@ export default function CareerPage({ navigation }) {
   }, []);
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView 
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={true}
+    >
+      {/* Header with User Info */}
       <View style={styles.header}>
-        <HeadingText level="h1" style={styles.welcomeText}>Welcome to Career Mate AI</HeadingText>
-        <Text style={styles.userText}>{user?.name || user?.email}</Text>
-        <Button
-          title="👤 View Profile"
-          onPress={() => navigation.navigate("UserProfile")}
-          color="#6c757d"
-        />
+        <Text style={styles.userText}>{user?.name || user?.email || 'User'}</Text>
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={logout}
+          accessibilityLabel="Logout"
+          accessibilityRole="button"
+        >
+          <Text style={styles.logoutButtonText}>🚪 Logout</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.featuresContainer}>
-        <HeadingText level="h2" style={styles.sectionTitle}>🚀 AI-Powered Career Tools</HeadingText>
-
-        {/* Resume Templates - Conditionally rendered based on feature flag */}
-        {featureFlags.resumeTemplatesEnabled && (
-          <View style={styles.featureCard}>
-            <HeadingText level="h3" style={styles.featureTitle}>📄 Resume Templates</HeadingText>
-            <Text style={styles.featureDescription}>Browse professional LaTeX resume templates</Text>
-            <Button
-              title="🎨 Browse Templates"
-              onPress={() => navigation.navigate("ResumeTemplates")}
-              color="#6f42c1"
-            />
-          </View>
-        )}
-
-        {/* Resume Builder & Analysis - Conditionally rendered based on feature flags */}
-        {(featureFlags.aiSuggestionsEnabled || featureFlags.resumeUploadEnabled) && (
-          <View style={styles.featureCard}>
-            <HeadingText level="h3" style={styles.featureTitle}>📄 Resume Builder & Analysis</HeadingText>
-            <Text style={styles.featureDescription}>
-              Build, edit{featureFlags.aiSuggestionsEnabled ? ', and get AI-powered feedback on' : ' your'} resume
-            </Text>
-            <View style={styles.buttonRow}>
-              <Button title="📝 Build Resume" onPress={() => navigation.navigate("ResumeEditor")} />
-              <View style={styles.buttonSpacing} />
-              <Button title="👁️ Live Preview" onPress={() => navigation.navigate("ResumePreview")} color="#007AFF" />
-            </View>
-            {featureFlags.resumeUploadEnabled && (
-              <>
-                <View style={styles.buttonSpacing} />
-                <Button title="📤 Upload & Analyze" onPress={() => navigation.navigate("ResumeUpload")} color="#28a745" />
-              </>
+      {/* Main Content with Sidebar */}
+      <View style={styles.mainContent}>
+        {/* Vertical Navigation Sidebar */}
+        {!isLoadingFlags && (
+          <View style={styles.sidebar}>
+            <HeadingText level="h2" style={styles.sidebarTitle}>Career</HeadingText>
+            
+            {featureFlags.resumeTemplatesEnabled && (
+              <TouchableOpacity 
+                style={styles.sidebarItem}
+                onPress={() => navigation.navigate("ResumeTemplates")}
+              >
+                <Text style={styles.sidebarIcon}>📄</Text>
+                <Text style={styles.sidebarText}>Resume Templates</Text>
+              </TouchableOpacity>
+            )}
+            
+            {(featureFlags.aiSuggestionsEnabled || featureFlags.resumeUploadEnabled) && (
+              <TouchableOpacity 
+                style={styles.sidebarItem}
+                onPress={() => navigation.navigate("ResumeEditor")}
+              >
+                <Text style={styles.sidebarIcon}>📝</Text>
+                <Text style={styles.sidebarText}>Resume Builder</Text>
+              </TouchableOpacity>
+            )}
+            
+            {featureFlags.coverLetterGeneration && featureFlags.jobDescriptionParsing && (
+              <TouchableOpacity 
+                style={styles.sidebarItem}
+                onPress={() => navigation.navigate("JobDescriptionCover")}
+              >
+                <Text style={styles.sidebarIcon}>💼</Text>
+                <Text style={styles.sidebarText}>Smart Cover Letters</Text>
+              </TouchableOpacity>
+            )}
+            
+            {featureFlags.coverLetterGeneration && (
+              <TouchableOpacity 
+                style={styles.sidebarItem}
+                onPress={() => navigation.navigate("CoverPreview", { resume_text: "" })}
+              >
+                <Text style={styles.sidebarIcon}>✍️</Text>
+                <Text style={styles.sidebarText}>Custom Cover Letters</Text>
+              </TouchableOpacity>
             )}
           </View>
         )}
 
-        {/* Live Edit Demo - Conditionally rendered based on feature flag */}
-        {featureFlags.liveEditDemo && (
-          <View style={styles.featureCard}>
-            <HeadingText level="h3" style={styles.featureTitle}>🔧 Live Edit Demo</HeadingText>
-            <Text style={styles.featureDescription}>Try our experimental live editing features</Text>
-            <Button
-              title="🚀 Try Live Demo"
-              onPress={() => {/* Navigate to live demo */}}
-              color="#ff6b35"
-            />
+        {/* Center Content */}
+        <View style={styles.centerContent}>
+          {isLoadingFlags ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading features...</Text>
+        </View>
+      ) : (
+        <View style={styles.welcomeContainer}>
+          <HeadingText level="h1" style={styles.welcomeTitle}>Welcome to Career Mate AI</HeadingText>
+          <Text style={styles.welcomeSubtitle}>Your AI-powered career assistant</Text>
+          
+          <View style={styles.quickActions}>
+            <HeadingText level="h2" style={styles.sectionTitle}>Quick Actions</HeadingText>
+            
+            <View style={styles.actionButtons}>
+              {featureFlags.resumeUploadEnabled && (
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("ResumeUpload")}
+                >
+                  <Text style={styles.actionButtonIcon}>📤</Text>
+                  <Text style={styles.actionButtonText}>Upload Resume</Text>
+                </TouchableOpacity>
+              )}
+              
+              {featureFlags.aiSuggestionsEnabled && (
+                <TouchableOpacity 
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("ResumeUpload")}
+                >
+                  <Text style={styles.actionButtonIcon}>🤖</Text>
+                  <Text style={styles.actionButtonText}>Get AI Feedback</Text>
+                </TouchableOpacity>
+              )}
+              
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => navigation.navigate("ResumePreview")}
+              >
+                <Text style={styles.actionButtonIcon}>👁️</Text>
+                <Text style={styles.actionButtonText}>Preview Resume</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.actionButton}
+                onPress={() => navigation.navigate("UserProfile")}
+              >
+                <Text style={styles.actionButtonIcon}>👤</Text>
+                <Text style={styles.actionButtonText}>View Profile</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-
-        {/* Smart Cover Letters - Conditionally rendered based on feature flags */}
-        {featureFlags.coverLetterGeneration && featureFlags.jobDescriptionParsing && (
-          <View style={styles.featureCard}>
-            <HeadingText level="h3" style={styles.featureTitle}>💼 Smart Cover Letters</HeadingText>
-            <Text style={styles.featureDescription}>Generate personalized cover letters from job descriptions using your stored resume</Text>
-            <Button
-              title="Generate Cover Letter from JD"
-              onPress={() => navigation.navigate("JobDescriptionCover")}
-              color="#007AFF"
-            />
-          </View>
-        )}
-
-        {/* Custom Cover Letters - Conditionally rendered based on feature flag */}
-        {featureFlags.coverLetterGeneration && (
-          <View style={styles.featureCard}>
-            <HeadingText level="h3" style={styles.featureTitle}>✍️ Custom Cover Letters</HeadingText>
-            <Text style={styles.featureDescription}>Create cover letters with manual resume input</Text>
-            <Button
-              title="Create Custom Cover Letter"
-              onPress={() => navigation.navigate("CoverPreview", { resume_text: "" })}
-              color="#28a745"
-            />
-          </View>
-        )}
-
-        {/* Debug Information - Only show in debug mode */}
-        {featureFlags.debugMode && (
-          <View style={[styles.featureCard, { backgroundColor: '#f8f9fa', borderColor: '#6c757d' }]}>
-            <HeadingText level="h3" style={[styles.featureTitle, { color: '#6c757d' }]}>🐛 Debug Info</HeadingText>
-            <Text style={styles.featureDescription}>Feature flag status and app diagnostics</Text>
-            <Button
-              title="View Debug Info"
-              onPress={() => {
-                const stats = featureFlagManager.getStats();
-                console.log('Feature Flag Stats:', stats);
-                alert(`Feature Flags: ${stats.serviceHealthy ? 'Healthy' : 'Degraded'}\nCache Hit Rate: ${(stats.cache.hitRate * 100).toFixed(1)}%`);
-              }}
-              color="#6c757d"
-            />
-          </View>
-        )}
-      </View>
-
-      <View style={styles.logoutContainer}>
-        <Button title="🚪 Logout" onPress={() => logout()} color="#dc3545" />
+          )}
+        </View>
       </View>
     </ScrollView>
   );

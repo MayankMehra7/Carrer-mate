@@ -8,10 +8,12 @@
  * - Fallback UI for various scenarios
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuthRequest } from 'expo-auth-session';
+import { AuthContext } from '../../context/AuthContext';
 import { useNetworkAwareOAuth } from '../../hooks/useNetworkAwareOAuth';
+import { getOAuthConfigForCurrentPlatform, OAuthEndpoints } from '../../config/oauth';
 import { OAuthErrorHandler, OAuthErrorTypes } from '../../utils/oauthErrors';
 import { useAccountConflictResolution } from './AccountConflictDialog';
 import {
@@ -37,9 +39,48 @@ export const ComprehensiveOAuthButton = ({
     isWaitingForNetwork: false
   });
 
-  const { loginWithOAuth } = useAuth();
+  const { loginWithOAuth } = useContext(AuthContext);
   const networkOAuth = useNetworkAwareOAuth();
   const { resolveAccountConflict, AccountConflictDialog } = useAccountConflictResolution();
+
+  const oauthConfig = getOAuthConfigForCurrentPlatform(provider);
+  const endpoints = OAuthEndpoints[provider];
+
+  // Handle missing OAuth configuration gracefully
+  if (!oauthConfig || !oauthConfig.clientId) {
+    console.warn(`OAuth configuration missing for ${provider}`);
+    return (
+      <View style={[styles.container, style]}>
+        <Text style={styles.buttonText}>
+          {provider} OAuth not configured
+        </Text>
+      </View>
+    );
+  }
+
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      clientId: oauthConfig.clientId,
+      scopes: oauthConfig.scopes,
+      redirectUri: oauthConfig.redirectUri,
+    },
+    {
+      authorizationEndpoint: endpoints.authUrl,
+      tokenEndpoint: endpoints.tokenUrl,
+    }
+  );
+
+  useEffect(() => {
+    if (response) {
+      if (response.type === 'success') {
+        handleOAuthFlow(response.params);
+      } else if (response.type === 'error') {
+        const error = OAuthErrorHandler.createError(response, provider);
+        setAuthState(prev => ({ ...prev, error }));
+        onError && onError(error);
+      }
+    }
+  }, [response]);
 
   const getProviderDisplayName = () => {
     const names = { google: 'Google', github: 'GitHub' };
@@ -55,9 +96,28 @@ export const ComprehensiveOAuthButton = ({
     try {
       setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
 
+      // Format OAuth data for backend
+      // Google expects 'token' (access_token), GitHub expects 'code'
+      let formattedData = {};
+      if (provider === 'google') {
+        // For Google, use access_token if available, otherwise use code
+        formattedData = {
+          token: oauthData.access_token || oauthData.code || oauthData.token,
+          code: oauthData.code // Include code as fallback
+        };
+      } else if (provider === 'github') {
+        // For GitHub, use code
+        formattedData = {
+          code: oauthData.code || oauthData.access_token,
+          state: oauthData.state
+        };
+      } else {
+        formattedData = oauthData;
+      }
+
       // Execute OAuth with network awareness
       const result = await networkOAuth.executeOAuthOperation(
-        () => loginWithOAuth(provider, oauthData),
+        () => loginWithOAuth(provider, formattedData),
         provider,
         {
           showRetryFeedback: true,
@@ -126,45 +186,8 @@ export const ComprehensiveOAuthButton = ({
 
   const handlePress = useCallback(async () => {
     if (disabled || authState.isLoading) return;
-
-    try {
-      // Check network connectivity first
-      if (!networkOAuth.isOnline) {
-        setAuthState(prev => ({ ...prev, isWaitingForNetwork: true }));
-        await networkOAuth.waitForConnectivity();
-        setAuthState(prev => ({ ...prev, isWaitingForNetwork: false }));
-      }
-
-      // Check provider availability
-      const availability = await networkOAuth.checkProviderAvailability([provider]);
-      if (!availability[provider]?.available) {
-        const error = OAuthErrorHandler.createError({
-          type: OAuthErrorTypes.PROVIDER_UNAVAILABLE,
-          message: `${getProviderDisplayName()} is currently unavailable`
-        }, provider);
-        
-        setAuthState(prev => ({ ...prev, error }));
-        return;
-      }
-
-      // Provider-specific OAuth initiation
-      if (provider === 'google') {
-        // For Google, we would typically use @react-native-google-signin/google-signin
-        // This is a placeholder for the actual Google OAuth implementation
-        const googleOAuthData = await initiateGoogleOAuth();
-        await handleOAuthFlow(googleOAuthData);
-      } else if (provider === 'github') {
-        // For GitHub, we would typically use expo-auth-session
-        // This is a placeholder for the actual GitHub OAuth implementation
-        const githubOAuthData = await initiateGitHubOAuth();
-        await handleOAuthFlow(githubOAuthData);
-      }
-    } catch (error) {
-      const oauthError = OAuthErrorHandler.createError(error, provider);
-      setAuthState(prev => ({ ...prev, error: oauthError }));
-      onError && onError(oauthError);
-    }
-  }, [disabled, authState.isLoading, networkOAuth, provider, handleOAuthFlow, onError]);
+    await promptAsync();
+  }, [disabled, authState.isLoading, promptAsync]);
 
   const handleRetry = useCallback(() => {
     setAuthState(prev => ({ ...prev, error: null }));
@@ -178,17 +201,6 @@ export const ComprehensiveOAuthButton = ({
       action();
     }
   }, [handleRetry]);
-
-  // Placeholder OAuth initiation functions (would be replaced with actual implementations)
-  const initiateGoogleOAuth = async () => {
-    // This would use @react-native-google-signin/google-signin
-    throw new Error('Google OAuth implementation needed');
-  };
-
-  const initiateGitHubOAuth = async () => {
-    // This would use expo-auth-session
-    throw new Error('GitHub OAuth implementation needed');
-  };
 
   // Render waiting for connectivity state
   if (authState.isWaitingForNetwork) {

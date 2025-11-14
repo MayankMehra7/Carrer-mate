@@ -45,6 +45,9 @@ def create_app():
     # Session (server-side storage using filesystem)
     app.config["SESSION_TYPE"] = "filesystem"
     app.config["SESSION_PERMANENT"] = False
+    app.config["SESSION_COOKIE_SAMESITE"] = "None"  # Required for CORS
+    app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
     Session(app)
 
     # init mail
@@ -58,9 +61,10 @@ def create_app():
     from flask_cors import CORS
     CORS(app, 
          supports_credentials=True,
-         origins=["http://localhost:8081", "http://localhost:8082", "http://127.0.0.1:8081", "http://127.0.0.1:8082"],
-         allow_headers=["Content-Type", "Authorization", "X-Session-Token"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"])
+         origins=["http://localhost:8081", "http://localhost:8082", "http://localhost:19006", "http://127.0.0.1:8081", "http://127.0.0.1:8082", "http://127.0.0.1:19006"],
+         allow_headers=["Content-Type", "Authorization", "X-Session-Token", "X-Enable-Caching", "X-Debug-Mode"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         expose_headers=["Set-Cookie"])
 
     # register routes
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -71,5 +75,12 @@ def create_app():
     return app
 
 if __name__ == "__main__":
+    # Test MongoDB connection before starting server
+    from config import test_mongodb_connection
+    test_mongodb_connection()
+    
     app = create_app()
+    print(f"\n🚀 Starting Career Mate Backend Server...")
+    print(f"   Server will be available at http://localhost:{os.getenv('PORT', 5000)}")
+    print(f"   Press Ctrl+C to stop the server\n")
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)), debug=True)

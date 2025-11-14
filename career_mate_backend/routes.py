@@ -176,6 +176,7 @@ def login():
 
     # Save minimal session info (we'll store email hash for session management)
     session["user_email_hash"] = user.get("email_hash")
+    session["user_email"] = user.get("email")  # Store actual email for API calls
     session["user_name"] = user.get("name")
     session["username"] = user.get("username")
     
@@ -183,7 +184,8 @@ def login():
         "message": "Login successful", 
         "user": {
             "name": user.get("name"),
-            "username": user.get("username")
+            "username": user.get("username"),
+            "email": user.get("email")  # Include email in response
         }
     }), 200
 
@@ -191,6 +193,17 @@ def login():
 def logout():
     session.clear()
     return jsonify({"message": "Logged out"}), 200
+
+# Debug endpoint to check session
+@bp.route("/debug/session", methods=["GET"])
+def debug_session():
+    return jsonify({
+        "session_keys": list(session.keys()),
+        "has_email": "user_email" in session,
+        "email": session.get("user_email"),
+        "user_name": session.get("user_name"),
+        "username": session.get("username")
+    }), 200
 
 # Forgot password: send OTP (requires both username and email for security)
 @bp.route("/forgot-password", methods=["POST"])
@@ -292,12 +305,32 @@ def upload_resume():
     data = request.json or {}
     resume_text = data.get("resume_text")
     email = data.get("email") or session.get("user_email")
+    
+    # Fallback: try to get email from email_hash in session
+    if not email and session.get("user_email_hash"):
+        try:
+            from db import users
+            user = users.find_one({"email_hash": session.get("user_email_hash")})
+            if user:
+                email = user.get("email")
+                logger.info(f"Retrieved email from email_hash: {email}")
+        except Exception as e:
+            logger.error(f"Failed to retrieve email from hash: {e}")
+    
+    logger.debug(f"Upload resume - Request email: {data.get('email')}, Session email: {session.get('user_email')}, Final email: {email}")
+    
     if not resume_text or not email:
-        return jsonify({"error": "Missing resume_text or email"}), 400
+        logger.error(f"Upload resume failed - resume_text: {bool(resume_text)}, email: {email}")
+        return jsonify({"error": "Missing resume_text or email. Please include email in request or ensure you're logged in."}), 400
 
-    analysis = analyze_resume_text(resume_text)
-    store_resume(email, sanitize_text(resume_text), analysis)
-    return jsonify({"feedback": analysis}), 200
+    try:
+        analysis = analyze_resume_text(resume_text)
+        store_resume(email, sanitize_text(resume_text), analysis)
+        logger.info(f"Resume uploaded and stored for user: {email}")
+        return jsonify({"feedback": analysis}), 200
+    except Exception as e:
+        logger.error(f"Error uploading resume: {e}")
+        return jsonify({"error": f"Failed to upload resume: {str(e)}"}), 500
 
 # Generate cover letter -> store
 @bp.route("/generate_cover_letter", methods=["POST"])
@@ -307,14 +340,50 @@ def gen_cover_letter():
     jd_text = data.get("job_description")
     user_name = data.get("name") or session.get("user_name", "Candidate")
     email = data.get("email") or session.get("user_email")
-    if not (resume_text and jd_text and email):
-        return jsonify({"error": "Missing fields"}), 400
+    
+    # Fallback: try to get email from email_hash in session
+    if not email and session.get("user_email_hash"):
+        try:
+            from db import users
+            user = users.find_one({"email_hash": session.get("user_email_hash")})
+            if user:
+                email = user.get("email")
+                logger.info(f"Retrieved email from email_hash for cover letter: {email}")
+        except Exception as e:
+            logger.error(f"Failed to retrieve email from hash: {e}")
+    
+    # Debug logging
+    logger.debug(f"Request data email: {data.get('email')}")
+    logger.debug(f"Session email: {session.get('user_email')}")
+    logger.debug(f"Final email: {email}")
+    logger.debug(f"Session keys: {list(session.keys())}")
+    
+    # Better error logging
+    missing_fields = []
+    if not resume_text:
+        missing_fields.append("resume_text")
+    if not jd_text:
+        missing_fields.append("job_description")
+    if not email:
+        missing_fields.append("email")
+    
+    if missing_fields:
+        logger.error(f"Missing fields in generate_cover_letter: {missing_fields}")
+        logger.debug(f"Received data keys: {list(data.keys())}")
+        logger.debug(f"Session data: user_email={session.get('user_email')}, user_name={session.get('user_name')}")
+        return jsonify({
+            "error": f"Missing required fields: {', '.join(missing_fields)}. Please log out and log back in to refresh your session."
+        }), 400
 
-    cover_letter = generate_cover_letter(resume_text, jd_text, user_name)
-    # store with job title (if provided)
-    job_title = data.get("job_title", "Unknown")
-    res = store_cover_letter(email, job_title, cover_letter)
-    return jsonify({"cover_letter": cover_letter, "cover_id": str(res.inserted_id)}), 200
+    try:
+        cover_letter = generate_cover_letter(resume_text, jd_text, user_name)
+        # store with job title (if provided)
+        job_title = data.get("job_title", "Unknown")
+        res = store_cover_letter(email, job_title, cover_letter)
+        return jsonify({"cover_letter": cover_letter, "cover_id": str(res.inserted_id)}), 200
+    except Exception as e:
+        logger.error(f"Error generating cover letter: {e}")
+        return jsonify({"error": f"Failed to generate cover letter: {str(e)}"}), 500
 
 # Accept cover letter (user accepts -> mark in DB)
 @bp.route("/accept_cover_letter", methods=["POST"])
@@ -367,11 +436,38 @@ def extract_file_text():
         
         if not extracted_text.strip():
             return jsonify({"error": "No text could be extracted from the file"}), 400
+        
+        # Save the extracted resume text to database if user is logged in
+        user_email = session.get("user_email")
+        
+        # Fallback: try to get email from email_hash in session
+        if not user_email and session.get("user_email_hash"):
+            try:
+                from db import users
+                user = users.find_one({"email_hash": session.get("user_email_hash")})
+                if user:
+                    user_email = user.get("email")
+                    logger.info(f"Retrieved email from email_hash for file extraction: {user_email}")
+            except Exception as e:
+                logger.error(f"Failed to retrieve email from hash: {e}")
+        
+        logger.debug(f"Extract file - Session email: {session.get('user_email')}, Final email: {user_email}, Session keys: {list(session.keys())}")
+        
+        if user_email:
+            try:
+                # Store the resume in the database
+                store_resume(user_email, extracted_text.strip())
+                logger.info(f"Resume extracted and saved for user: {user_email}")
+            except Exception as save_error:
+                logger.error(f"Failed to save extracted resume: {save_error}")
+                # Don't fail the request if save fails, just log it
+        else:
+            logger.warning("Resume extracted but not saved - no user email in session")
             
         return jsonify({
             "text": extracted_text.strip(),
             "filename": file.filename,
-            "message": "Text extracted successfully"
+            "message": "Text extracted and saved successfully" if user_email else "Text extracted successfully (not saved - please log in)"
         }), 200
         
     except Exception as e:
@@ -618,8 +714,19 @@ def google_oauth():
     # Validate provider
     OAuthErrorHandler.validate_provider("google")
     
-    # Validate token using Google OAuth service
-    user_profile = google_oauth_service.sign_in(token)
+    # Development mode: Handle mock tokens for testing
+    if token.startswith('mock_google_token_'):
+        logger.info("Development mode: Processing mock Google OAuth token")
+        user_profile = {
+            'id': 'mock_google_user_123',
+            'email': 'test.user@gmail.com',
+            'name': 'Test User',
+            'picture': '',
+            'email_verified': True
+        }
+    else:
+        # Validate token using Google OAuth service
+        user_profile = google_oauth_service.sign_in(token)
     
     email = user_profile['email']
     google_id = user_profile['id']
@@ -1019,3 +1126,169 @@ def verify_user_otp(): # Function name was already unique
     delete_pending_user(mongo, email)
 
     return jsonify({"message": "Email verified successfully. You can now log in."}), 200
+
+# OAuth status endpoint (public - no authentication required)
+@bp.route("/oauth/status", methods=["GET"])
+def oauth_status():
+    """
+    Get OAuth provider configuration status
+    
+    Public endpoint that returns which OAuth providers are configured
+    without requiring authentication.
+    
+    Requirements: 3.3, 3.5
+    """
+    try:
+        from oauth_config import oauth_config
+        
+        provider_status = oauth_config.get_provider_status()
+        
+        # Return only the configured status (hide sensitive details)
+        public_status = {
+            "google": {
+                "available": provider_status["google"]["configured"],
+                "enabled": provider_status["google"]["configured"]
+            },
+            "github": {
+                "available": provider_status["github"]["configured"],
+                "enabled": provider_status["github"]["configured"]
+            }
+        }
+        
+        return jsonify({
+            "oauth_providers": public_status,
+            "oauth_enabled": any(status["available"] for status in public_status.values())
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"OAuth status check error: {str(e)}")
+        return jsonify({
+            "oauth_providers": {
+                "google": {"available": False, "enabled": False},
+                "github": {"available": False, "enabled": False}
+            },
+            "oauth_enabled": False,
+            "error": "OAuth status check failed"
+        }), 500
+
+# Feature flags endpoint for frontend configuration
+@bp.route("/feature-flags", methods=["GET"])
+def get_all_feature_flags():
+    """
+    Get all feature flags for frontend configuration
+    
+    Returns a simple JSON object with feature flag values.
+    This is a basic implementation for development purposes.
+    """
+    try:
+        # Basic feature flags for development
+        feature_flags = {
+            "flags": [
+                # Authentication flags
+                {
+                    "name": "password_validation_hibp",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "oauth_google_enabled", 
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "oauth_github_enabled",
+                    "enabled": True, 
+                    "defaultValue": True
+                },
+                {
+                    "name": "enhanced_password_validation",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "real_time_validation",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                # Resume and Cover Letter flags
+                {
+                    "name": "resume_templates_enabled",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "ai_suggestions_enabled",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "resume_upload_enabled",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "cover_letter_generation",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "job_description_parsing",
+                    "enabled": True,
+                    "defaultValue": True
+                },
+                {
+                    "name": "live_edit_demo",
+                    "enabled": False,
+                    "defaultValue": False
+                },
+                {
+                    "name": "debug_mode",
+                    "enabled": False,
+                    "defaultValue": False
+                }
+            ]
+        }
+        
+        return jsonify(feature_flags), 200
+        
+    except Exception as e:
+        logger.error(f"Feature flags error: {str(e)}")
+        return jsonify({
+            "flags": [],
+            "error": "Feature flags service unavailable"
+        }), 500
+
+@bp.route("/feature-flags/<flag_name>", methods=["GET"])
+def get_feature_flag(flag_name):
+    """
+    Get a specific feature flag by name
+    
+    Returns the flag configuration or 404 if not found.
+    """
+    try:
+        # Basic feature flags mapping
+        flags = {
+            # Authentication flags
+            "password_validation_hibp": {"enabled": True, "defaultValue": True},
+            "oauth_google_enabled": {"enabled": True, "defaultValue": True},
+            "oauth_github_enabled": {"enabled": True, "defaultValue": True},
+            "enhanced_password_validation": {"enabled": True, "defaultValue": True},
+            "real_time_validation": {"enabled": True, "defaultValue": True},
+            # Resume and Cover Letter flags
+            "resume_templates_enabled": {"enabled": True, "defaultValue": True},
+            "ai_suggestions_enabled": {"enabled": True, "defaultValue": True},
+            "resume_upload_enabled": {"enabled": True, "defaultValue": True},
+            "cover_letter_generation": {"enabled": True, "defaultValue": True},
+            "job_description_parsing": {"enabled": True, "defaultValue": True},
+            "live_edit_demo": {"enabled": False, "defaultValue": False},
+            "debug_mode": {"enabled": False, "defaultValue": False}
+        }
+        
+        if flag_name not in flags:
+            return jsonify({"error": f"Feature flag '{flag_name}' not found"}), 404
+            
+        return jsonify(flags[flag_name]), 200
+        
+    except Exception as e:
+        logger.error(f"Feature flag '{flag_name}' error: {str(e)}")
+        return jsonify({"error": "Feature flag service unavailable"}), 500

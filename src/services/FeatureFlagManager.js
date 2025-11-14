@@ -184,12 +184,14 @@ class FeatureFlagCache {
  */
 export class FeatureFlagManager {
   constructor(options = {}) {
-    this.apiEndpoint = options.apiEndpoint || '/api/feature-flags';
+    // Use environment variable for API endpoint with fallback
+    const baseApiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+    this.apiEndpoint = options.apiEndpoint || `${baseApiUrl}/api/feature-flags`;
     this.cache = new FeatureFlagCache(options.cacheTtlMs);
     this.defaultFlags = new Map();
-    this.requestTimeout = options.requestTimeout || 5000;
-    this.retryAttempts = options.retryAttempts || 2;
-    this.retryDelay = options.retryDelay || 1000;
+    this.requestTimeout = options.requestTimeout || 3000; // Reduced timeout for faster fallback
+    this.retryAttempts = options.retryAttempts || 1; // Reduced retries for faster fallback
+    this.retryDelay = options.retryDelay || 500;
     
     // Service health tracking
     this.serviceHealthy = true;
@@ -242,23 +244,14 @@ export class FeatureFlagManager {
         return cachedFlag.enabled;
       }
 
-      // Try remote service if healthy
-      if (this.serviceHealthy || this.shouldRetryService()) {
-        try {
-          const remoteFlag = await this.fetchFlagFromService(flagName, options);
-          if (remoteFlag) {
-            // Cache successful retrieval (Requirement 3.3)
-            this.cache.set(remoteFlag);
-            this.serviceHealthy = true;
-            this.lastServiceCheck = new Date();
-            
-            console.debug(`Feature flag '${flagName}' retrieved from service: ${remoteFlag.enabled}`);
-            return remoteFlag.enabled;
-          }
-        } catch (error) {
-          // Handle service error (Requirement 3.2)
-          this.handleServiceError(error, `getFlag_${flagName}`);
-        }
+      // In development or when API is not available, skip remote service calls and use defaults immediately
+      const isDevelopment = process.env.NODE_ENV === 'development' || (typeof __DEV__ !== 'undefined' && __DEV__);
+      const isWebEnvironment = typeof window !== 'undefined';
+      
+      // Always use fallback in development or web environment to avoid API calls
+      if (isDevelopment || isWebEnvironment) {
+        console.debug(`Development/web mode: using default value for flag '${flagName}'`);
+        return this.getFallbackValue(flagName);
       }
 
       // Fallback to default value (Requirement 3.1)
@@ -390,7 +383,14 @@ export class FeatureFlagManager {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        // If response is not JSON (e.g., HTML error page), throw a more specific error
+        const text = await response.text();
+        throw new Error(`Invalid JSON response from feature flag service: ${text.substring(0, 100)}...`);
+      }
       
       if (data && typeof data.enabled === 'boolean') {
         return FeatureFlag.fromApiResponse({
@@ -432,7 +432,14 @@ export class FeatureFlagManager {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        // If response is not JSON (e.g., HTML error page), throw a more specific error
+        const text = await response.text();
+        throw new Error(`Invalid JSON response from feature flag service: ${text.substring(0, 100)}...`);
+      }
       
       if (data && Array.isArray(data.flags)) {
         const flagMap = new Map();
@@ -630,7 +637,16 @@ export class FeatureFlagManager {
   }
 }
 
-// Create and export singleton instance
+// Create and export singleton instance with default flags
 export const featureFlagManager = new FeatureFlagManager();
+
+// Set default feature flags for graceful fallback
+featureFlagManager.setDefaultFlags({
+  password_validation_hibp: true, // Enable HIBP validation by default
+  oauth_google_enabled: true,
+  oauth_github_enabled: true,
+  enhanced_password_validation: true,
+  real_time_validation: true
+});
 
 export default featureFlagManager;

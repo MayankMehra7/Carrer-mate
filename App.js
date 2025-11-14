@@ -3,16 +3,16 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useContext, useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import styles from './App.styles';
+import { AuthContext, AuthProvider } from './src/context/AuthContext.jsx'; // Updated import
 import { initializeFeatureFlags } from './src/config/featureFlags';
-import { AuthContext, AuthProvider } from './src/context/AuthContext';
-import { useAppFonts } from './src/hooks/useFonts';
+// import { useAppFonts } from './src/hooks/useFonts'; // Assuming fonts are not the focus
 
 // Import all your screens
 import CareerPage from './src/screens/CareerPage';
 import CoverLetterPreview from './src/screens/CoverLetterPreview';
 import ForgotPassword from './src/screens/ForgotPassword';
 import JobDescriptionCover from './src/screens/JobDescriptionCover';
-import Login from './src/screens/Login';
+import Login from './src/screens/Login'; // Ensure this is the new Login screen
 import OtpVerify from './src/screens/OtpVerify';
 import ResetPassword from './src/screens/ResetPassword';
 import ResumeEditor from './src/screens/ResumeEditor';
@@ -25,7 +25,6 @@ const Stack = createNativeStackNavigator();
 
 function AppNavigator() {
   const { user, loadingAuth } = useContext(AuthContext);
-  const { fontsLoaded, fontError } = useAppFonts();
   const [featureFlagsInitialized, setFeatureFlagsInitialized] = useState(false);
   const [initializingFlags, setInitializingFlags] = useState(true);
 
@@ -52,14 +51,12 @@ function AppNavigator() {
   }, []);
 
   // Show loading screen while initializing
-  if (loadingAuth || (!fontsLoaded && !fontError) || initializingFlags) {
+  if (loadingAuth || initializingFlags) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>
-          {loadingAuth ? 'Loading...' : 
-           initializingFlags ? 'Initializing features...' : 
-           'Loading fonts...'}
+          {initializingFlags ? 'Initializing...' : 'Loading...'}
         </Text>
       </View>
     );
@@ -71,7 +68,11 @@ function AppNavigator() {
         {user ? (
           // Authenticated screens
           <>
-            <Stack.Screen name="Career" component={CareerPage} />
+            <Stack.Screen 
+              name="Career" 
+              component={CareerPage} 
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="ResumeUpload" component={ResumeUpload} />
             <Stack.Screen name="ResumeEditor" component={ResumeEditor} />
             <Stack.Screen name="ResumePreview" component={ResumePreview} />

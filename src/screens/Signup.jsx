@@ -1,16 +1,17 @@
 // src/screens/Signup.jsx
 import { useContext, useState } from "react";
-import { Alert, Button, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { api } from "../api/api";
 import { HeadingText } from "../components/common/HeadingText";
 import { PasswordInput } from "../components/common/PasswordInput";
-import { ValidatedInput } from "../components/common/ValidatedInput";
+import { ComprehensiveOAuthButton } from "../components/oauth/ComprehensiveOAuthButton";
+import StyledButton from "../components/common/StyledButton";
+import StyledTextInput from "../components/common/StyledTextInput";
 import { AuthContext } from "../context/AuthContext";
 import { useValidation } from "../hooks/useValidation";
 import styles from "./Signup.styles";
 
 export default function Signup({ navigation }) {
-  const { loginWithOAuth } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     name: "",
     username: "",
@@ -23,7 +24,6 @@ export default function Signup({ navigation }) {
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [isPasswordValidating, setIsPasswordValidating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [oauthLoading, setOauthLoading] = useState(false);
 
   // Validation hooks for username and email
   const usernameValidation = useValidation('username', formData.username);
@@ -85,43 +85,7 @@ export default function Signup({ navigation }) {
     return errors;
   };
 
-  // Handle OAuth authentication success
-  const handleOAuthSuccess = async (provider, oauthData) => {
-    setOauthLoading(true);
-    
-    try {
-      const result = await loginWithOAuth(provider, oauthData);
-      
-      if (result.ok) {
-        console.log(`${provider} sign-up successful`);
-        // Navigation handled by AuthContext
-      } else {
-        const errorMessage = result.message || `${provider} authentication failed`;
-        Alert.alert("Authentication Error", errorMessage);
-      }
-    } catch (error) {
-      Alert.alert("Network Error", `Network error during ${provider} authentication`);
-    } finally {
-      setOauthLoading(false);
-    }
-  };
 
-  // Handle OAuth authentication errors
-  const handleOAuthError = (provider, error) => {
-    console.error(`${provider} OAuth error:`, error);
-    setOauthLoading(false);
-    
-    // Handle cancellation separately
-    if (error?.type === 'oauth_cancelled' || 
-        (typeof error === 'string' && (error.includes('cancelled') || error.includes('cancel')))) {
-      // User cancelled - no need to show error
-      return;
-    }
-    
-    // Set form error for non-cancellation errors
-    const errorMessage = error?.message || error || `${provider} sign-up failed`;
-    Alert.alert("Authentication Error", errorMessage);
-  };
 
   const onSignup = async () => {
     // Requirement 5.3: Add form submission prevention logic based on password validation
@@ -166,13 +130,13 @@ export default function Signup({ navigation }) {
       <HeadingText level="h1" style={styles.title}>Career Mate AI</HeadingText>
       <Text style={styles.subtitle}>Create your account</Text>
       
-      <ValidatedInput
+      <StyledTextInput
         label="Full Name"
         value={formData.name}
         onChangeText={(text) => setFormData({...formData, name: text})}
       />
       
-      <ValidatedInput
+      <StyledTextInput
         label="Username"
         value={formData.username}
         onChangeText={(text) => setFormData({...formData, username: text})}
@@ -180,7 +144,7 @@ export default function Signup({ navigation }) {
         autoCapitalize="none"
       />
       
-      <ValidatedInput
+      <StyledTextInput
         label="Email"
         value={formData.email}
         onChangeText={(text) => setFormData({...formData, email: text})}
@@ -189,30 +153,28 @@ export default function Signup({ navigation }) {
         autoCapitalize="none"
       />
       
-      {/* Requirements 2.1, 2.2, 2.3: Replace existing password field with enhanced validation input */}
       <PasswordInput
         value={formData.password || ''}
         onChangeText={(text) => setFormData({...formData, password: text || ''})}
-        username={formData.username || ''} // Requirement 2.1: Pass username for personal info checking
-        email={formData.email || ''} // Requirement 2.2: Pass email for personal info checking
-        onValidationChange={handlePasswordValidationChange} // Requirement 4.5: Form submission prevention logic
+        username={formData.username || ''}
+        email={formData.email || ''}
+        onValidationChange={handlePasswordValidationChange}
         placeholder="Enter your password"
       />
 
-      <ValidatedInput
+      <StyledTextInput
         label="Confirm Password"
         value={formData.confirmPassword}
         onChangeText={(text) => setFormData({ ...formData, confirmPassword: text })}
         secureTextEntry
       />
       
-      <View style={styles.buttonContainer}>
-        <Button 
-          title={isSubmitting ? "Creating Account..." : "Create Account"}
-          onPress={onSignup}
-          disabled={!isFormValid() || isSubmitting || oauthLoading} // Requirements 4.5, 5.4: Disable submit button when validation fails or during submission
-        />
-      </View>
+      <StyledButton 
+        title={isSubmitting ? "Creating Account..." : "Create Account"}
+        onPress={onSignup}
+        disabled={!isFormValid() || isSubmitting}
+        loading={isSubmitting}
+      />
 
       {/* OAuth Section */}
       <View style={styles.dividerContainer}>
@@ -222,19 +184,31 @@ export default function Signup({ navigation }) {
       </View>
 
       <View style={styles.oauthContainer}>
-        <Text style={{ textAlign: 'center', color: '#666', fontSize: 14 }}>
-          OAuth buttons temporarily disabled for testing
-        </Text>
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <Button 
-          title="Already have an account? Login" 
-          onPress={() => navigation.navigate("Login")} 
-          color="#6c757d" 
-          disabled={isSubmitting || oauthLoading}
+        <ComprehensiveOAuthButton
+          provider="google"
+          onSuccess={(result) => {
+            console.log('Google OAuth successful!', result);
+            // Navigation will happen automatically via AuthContext user state change
+          }}
+          onError={(error) => Alert.alert('OAuth Error', error.message || 'Google authentication failed')}
+        />
+        <View style={{ height: 10 }} />
+        <ComprehensiveOAuthButton
+          provider="github"
+          onSuccess={(result) => {
+            console.log('GitHub OAuth successful!', result);
+            // Navigation will happen automatically via AuthContext user state change
+          }}
+          onError={(error) => Alert.alert('OAuth Error', error.message || 'GitHub authentication failed')}
         />
       </View>
+
+      <StyledButton 
+        title="Already have an account? Login" 
+        onPress={() => navigation.navigate("Login")} 
+        style={{ backgroundColor: '#6c757d' }}
+        disabled={isSubmitting}
+      />
     </ScrollView>
   );
 }

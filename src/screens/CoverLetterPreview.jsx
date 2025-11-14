@@ -16,6 +16,18 @@ export default function CoverLetterPreview({ route, navigation }) {
 
   const onGenerate = async () => {
     if (!jd) return Alert.alert("Paste job description");
+    
+    // Check if user has email
+    if (!user?.email) {
+      return Alert.alert(
+        "Session Error", 
+        "Your session is missing email information. Please log out and log back in.",
+        [
+          { text: "OK" }
+        ]
+      );
+    }
+    
     setLoading(true);
     const res = await api.generateCover({ email: user.email, resume_text, job_description: jd, name: user.name });
     setLoading(false);
