@@ -107,58 +107,57 @@ export default function CareerPage({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Main Content with Sidebar */}
-      <View style={styles.mainContent}>
-        {/* Vertical Navigation Sidebar */}
-        {!isLoadingFlags && (
-          <View style={styles.sidebar}>
-            <HeadingText level="h2" style={styles.sidebarTitle}>Career</HeadingText>
-            
+      {/* Navigation Header */}
+      {!isLoadingFlags && (
+        <View style={styles.navHeader}>
+          <HeadingText level="h2" style={styles.navTitle}>Career</HeadingText>
+          
+          <View style={styles.navItems}>
             {featureFlags.resumeTemplatesEnabled && (
               <TouchableOpacity 
-                style={styles.sidebarItem}
+                style={styles.navItem}
                 onPress={() => navigation.navigate("ResumeTemplates")}
               >
-                <Text style={styles.sidebarIcon}>📄</Text>
-                <Text style={styles.sidebarText}>Resume Templates</Text>
+                <Text style={styles.navIcon}>📄</Text>
+                <Text style={styles.navText}>Resume Templates</Text>
               </TouchableOpacity>
             )}
             
             {(featureFlags.aiSuggestionsEnabled || featureFlags.resumeUploadEnabled) && (
               <TouchableOpacity 
-                style={styles.sidebarItem}
+                style={styles.navItem}
                 onPress={() => navigation.navigate("ResumeEditor")}
               >
-                <Text style={styles.sidebarIcon}>📝</Text>
-                <Text style={styles.sidebarText}>Resume Builder</Text>
+                <Text style={styles.navIcon}>📝</Text>
+                <Text style={styles.navText}>Resume Builder & Analysis</Text>
               </TouchableOpacity>
             )}
             
             {featureFlags.coverLetterGeneration && featureFlags.jobDescriptionParsing && (
               <TouchableOpacity 
-                style={styles.sidebarItem}
+                style={styles.navItem}
                 onPress={() => navigation.navigate("JobDescriptionCover")}
               >
-                <Text style={styles.sidebarIcon}>💼</Text>
-                <Text style={styles.sidebarText}>Smart Cover Letters</Text>
+                <Text style={styles.navIcon}>💼</Text>
+                <Text style={styles.navText}>Smart Cover Letters</Text>
               </TouchableOpacity>
             )}
             
             {featureFlags.coverLetterGeneration && (
               <TouchableOpacity 
-                style={styles.sidebarItem}
+                style={styles.navItem}
                 onPress={() => navigation.navigate("CoverPreview", { resume_text: "" })}
               >
-                <Text style={styles.sidebarIcon}>✍️</Text>
-                <Text style={styles.sidebarText}>Custom Cover Letters</Text>
+                <Text style={styles.navIcon}>✍️</Text>
+                <Text style={styles.navText}>Custom Cover Letters</Text>
               </TouchableOpacity>
             )}
           </View>
-        )}
+        </View>
+      )}
 
-        {/* Center Content */}
-        <View style={styles.centerContent}>
-          {isLoadingFlags ? (
+      {/* Center Content */}
+      {isLoadingFlags ? (
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading features...</Text>
         </View>
@@ -208,9 +207,8 @@ export default function CareerPage({ navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-          )}
         </View>
-      </View>
+      )}
     </ScrollView>
   );
 }

@@ -25,6 +25,57 @@ export default StyleSheet.create({
       },
     }),
   },
+  navHeader: {
+    backgroundColor: 'white',
+    padding: 20,
+    marginBottom: 30,
+    borderRadius: 15,
+    ...Platform.select({
+      web: { boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+      },
+    }),
+  },
+  navTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 15,
+    color: '#333',
+  },
+  navItems: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  navItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    margin: 5,
+    borderRadius: 10,
+    backgroundColor: '#f8f9fa',
+    minWidth: 180,
+    ...Platform.select({
+      web: { 
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+      },
+    }),
+  },
+  navIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  navText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
   mainContent: {
     flexDirection: 'row',
     flex: 1,
